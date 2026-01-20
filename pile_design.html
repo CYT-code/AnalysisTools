@@ -11,25 +11,6 @@
 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
-<script>
-  // 設定正確密碼
-  var correctPassword = "80649660"; 
-
-  // 跳出視窗
-  var input = prompt("【信業工程顧問股份有限公司 結構設計部專用工具】\n\n⚠️ 內部使用請勿外流 ⚠️\n請輸入使用密碼以繼續：");
-
-  // 判斷邏輯：如果輸入的密碼 不等於 正確密碼 (或是按了取消)
-  if (input !== correctPassword) {
-    // 1. 強制用這段文字覆蓋掉整個網頁
-    document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;"><h1>🚫 密碼錯誤或非本公司人員，禁止存取</h1></div>');
-    
-    // 2. 命令瀏覽器立刻停止載入剩下的 HTML
-    window.stop();
-    
-    // 3. 拋出一個錯誤來確保下方的程式碼絕對不會執行 (保險起見)
-    throw new Error("Access Denied");
-  }
-</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -799,6 +780,7 @@
     </script>
 </body>
 </html>
+
 
 
 
