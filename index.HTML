@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信業工程顧問股份有限公司</title>
+    
+    <!-- 1. 核心安全鎖 -->
+<script>
+  // 設定正確密碼
+  var correctPassword = "80649660"; 
+
+  // 跳出視窗
+  var input = prompt("【信業工程顧問股份有限公司 結構設計部專用工具】\n\n⚠️ 內部使用請勿外流 ⚠️\n請輸入使用密碼以繼續：");
+
+  // 判斷邏輯：如果輸入的密碼 不等於 正確密碼 (或是按了取消)
+  if (input !== correctPassword) {
+    // 1. 強制用這段文字覆蓋掉整個網頁
+    document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;"><h1>🚫 密碼錯誤或非本公司人員，禁止存取</h1></div>');
+    
+    // 2. 命令瀏覽器立刻停止載入剩下的 HTML
+    window.stop();
+    
+    // 3. 拋出一個錯誤來確保下方的程式碼絕對不會執行 (保險起見)
+    throw new Error("Access Denied");
+  }
+</script>
+
+    <!-- 2. Apple 風格樣式表 -->
+    <style>
+        :root {
+            --bg-color: #F5F5F7;
+            --card-bg: #FFFFFF;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-color: #0071e3;
+            --hover-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, "Microsoft JhengHei", Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            text-align: center;
+            padding: 80px 20px 40px 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .company-tag {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0;
+            line-height: 1.1;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 20px 60px 20px;
+        }
+
+        .tool-card {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            padding: 30px;
+            text-decoration: none;
+            color: var(--text-primary);
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.02);
+        }
+
+        .tool-card:hover {
+            transform: scale(1.02) translateY(-5px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .icon {
+            font-size: 40px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f7 100%);
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+            flex-grow: 1;
+        }
+
+        .action-link {
+            font-size: 14px;
+            color: var(--accent-color);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .action-link::after {
+            content: '›';
+            font-size: 18px;
+            margin-left: 4px;
+            margin-top: -2px;
+            transition: transform 0.3s;
+        }
+
+        .tool-card:hover .action-link::after {
+            transform: translateX(4px);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            max-width: 980px;
+            margin: 0 auto;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .grid-container {
+            animation: fadeIn 0.8s ease-out 0.2s backwards;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <span class="company-tag">Engineering Tools</span>
+        <h1>結構設計部</h1>
+    </div>
+
+    <div class="grid-container">
+        
+        <!-- 工具 1：基樁設計 (選樁) -->
+        <!-- 建議檔名: pile_design.html -->
+        <a href="pile_design.html" class="tool-card">
+            <div class="icon">🏗️</div>
+            <h3 class="card-title">基樁設計 (選樁)</h3>
+            <p class="card-desc">輸入載重需求與基樁參數，快速篩選最佳樁徑與長度。</p>
+            <div class="action-link">開啟工具</div>
+        </a>
+
+        <!-- 工具 2：繪製基樁 -->
+        <!-- 建議檔名: draw_pile.html -->
+        <a href="draw_pile.html" class="tool-card">
+            <div class="icon">✏️</div>
+            <h3 class="card-title">繪製基樁</h3>
+            <p class="card-desc">自動生成基樁斷面與平面圖,包含DXF。</p>
+            <div class="action-link">開啟工具</div>
+        </a>
+
+        <!-- 工具 3：SRCOL 程式應力比視覺化工具 -->
+        <!-- 建議檔名: srcol_viz.html -->
+        <a href="srcol_viz.html" class="tool-card">
+            <div class="icon">📊</div>
+            <h3 class="card-title">SRCOL 視覺化</h3>
+            <p class="card-desc">匯入 SRCOL 數據，將應力比 (Stress Ratio) 轉換為視覺化分佈圖。</p>
+            <div class="action-link">開啟工具</div>
+        </a>
+
+        <!-- 預留位置 (可隨時新增) -->
+        <a href="#" class="tool-card" style="opacity: 0.5; pointer-events: none;">
+            <div class="icon">➕</div>
+            <h3 class="card-title">即將推出</h3>
+            <p class="card-desc">更多結構計算工具正在開發中...</p>
+        </a>
+
+    </div>
+
+    <div class="footer">
+        <p>Copyright © 2026 XX Company. All rights reserved.</p>
+        <p>僅供內部使用 | Confidential</p>
+    </div>
+
+</body>
+</html>
+
