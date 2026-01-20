@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基樁(含圓形/矩形)與網格平面圖檢視器 (含DXF匯出)</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        /* --- 排版容器調整 --- */
+        #controls {
+            display: flex;
+            flex-direction: row; /* 改為橫向排列 */
+            flex-wrap: wrap;     /* 螢幕太窄時自動折行 */
+            gap: 20px;           /* 左右區塊間距 */
+            width: 100%;
+            max-width: 1100px;   /* 限制最大寬度讓閱讀更舒適 */
+            align-items: stretch; /* 讓左右高度傾向一致 (視內容而定) */
+            margin-bottom: 20px;
+        }
+
+        /* 左右欄位設定 */
+        .control-column {
+            flex: 1;             /* 平均分配空間 */
+            min-width: 300px;    /* 最小寬度防止過度擠壓 */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;           /* 垂直間距 */
+        }
+
+        .input-group {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            width: 100%; 
+            box-sizing: border-box;
+            flex-grow: 1; /* 讓區塊填滿高度 */
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="file"], input[type="text"], button, select {
+            margin-top: 5px;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 100%; /* 輸入框寬度填滿 */
+            box-sizing: border-box;
+        }
+        
+        /* textarea 樣式 */
+        textarea {
+            width: 100%;
+            height: 180px; 
+            margin-top: 5px;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-family: monospace; 
+            white-space: pre; 
+            overflow: auto;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        /* 按鈕區域 */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            font-size: 1rem;
+            padding: 10px 20px;
+            width: auto; /* 按鈕不需要填滿寬度 */
+            flex-grow: 1; /* 但可以稍微延展 */
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        /* --- DXF 按鈕專用樣式 --- */
+        button#downloadDxfButton { 
+            background-color: #28a745; 
+        }
+        button#downloadDxfButton:hover { 
+            background-color: #218838; 
+        }
+        button:disabled { 
+            background-color: #6c757d; 
+            cursor: not-allowed; 
+        }
+        
+        #drawStatus {
+            font-style: italic;
+            color: #555;
+            margin-left: 5px;
+            white-space: nowrap;
+        }
+
+        /* --- Canvas 區域 --- */
+        #canvasContainer {
+            margin-top: 10px;
+            border: 1px solid black;
+            width: 900px;
+            height: 700px;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        #canvasContainer:active {
+             cursor: grabbing;
+        }
+        #beamCanvas {
+            display: block;
+            background-color: #ffffff;
+        }
+         #messageArea {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            max-width: 90%;
+            z-index: 10;
+            border: 1px solid #ccc;
+            pointer-events: none;
+        }
+        #messageArea.error {
+            background-color: rgba(248, 215, 218, 0.9); color: #721c24; border: 1px solid #f5c6cb;
+        }
+         #messageArea.processing {
+            background-color: rgba(224, 224, 224, 0.9); color: #333;
+        }
+        #customContextMenu {
+            position: absolute;
+            display: none;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 150px;
+            border-radius: 4px;
+        }
+        .menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .menu-item:hover {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>基樁(含圓形/矩形)與網格平面圖檢視器</h1>
+    <p>支援圓樁(直徑)與矩形樁(寬度x長度，如 2.0x5)。</p>
+
+    <!-- 主控制區：左右排列 -->
+    <div id="controls">
+        
+        <!-- 左欄：上傳 ETABS + 按鈕 -->
+        <div class="control-column">
+            <div class="input-group">
+                <label for="etFileInput">1. 上傳 ETABS 幾何檔案 (.$et)</label>
+                <input type="file" id="etFileInput" accept=".$et">
+                <small style="color: #666; display: block; margin-top: 5px;">請選擇 ETABS 匯出的 .$et 文字檔</small>
+            </div>
+            
+            <div class="button-group">
+                <button id="drawButton">繪製平面圖</button>
+                <button id="downloadDxfButton" disabled>下載 DXF</button> 
+                <div style="width: 100%; text-align: center;">
+                    <span id="drawStatus">(閒置中)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右欄：貼上基樁資料 -->
+        <div class="control-column">
+            <div class="input-group" style="height: 100%; display: flex; flex-direction: column;">
+                <label for="pileInputText">2. 貼上基樁編號資料 (格式: 基樁編號 ETABS點編號 尺寸)</label>
+                <textarea id="pileInputText" style="flex-grow: 1;" placeholder="請在此貼上資料 (建議包含標題列，或保留第一行為標題)
+範例格式：
+基樁編號	ETABS點編號	樁徑/尺寸(m)
+P7	16	1.2X4
+P1	17	2.00
+P1	18	1.2X2.5"></textarea>
+            </div>
+        </div>
+
+    </div>
+
+
+    <div id="canvasContainer">
+         <div id="messageArea"></div>
+         <canvas id="beamCanvas" width="900" height="700"></canvas>
+    </div>
+
+    <div id="customContextMenu">
+        <div class="menu-item" id="resetViewOption">重設視圖</div>
+        <div class="menu-item" id="saveImageOption">另存圖片...</div>
+        <div class="menu-item" id="copyImageOption">複製圖片</div>
+    </div>
+
+
+    <script>
+        // --- 全局資料庫 ---
+        let pileData = {}; // { "PointID": { label: "P1", shape: "circle", width: 2.5, height: 2.5 }, ... }
+        let etFileData = null; // Raw content of .$et file
+        let currentMergedData = []; // [{ x, y, label, pointID, shape, width, height }, ...]
+        let currentGridData = { X: [], Y: [] }; // { X: [{label, coord}, ...], Y: [...] }
+
+        // --- DOM 元素 ---
+        const pileInputText = document.getElementById('pileInputText'); 
+        const etFileInput = document.getElementById('etFileInput');
+        const drawButton = document.getElementById('drawButton');
+        const canvas = document.getElementById('beamCanvas');
+        let ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const messageArea = document.getElementById('messageArea');
+        const drawStatus = document.getElementById('drawStatus');
+        const customContextMenu = document.getElementById('customContextMenu');
+        const resetViewOption = document.getElementById('resetViewOption');
+        const saveImageOption = document.getElementById('saveImageOption');
+        const copyImageOption = document.getElementById('copyImageOption');
+
+        // --- Zoom and Pan State Variables ---
+        let scale = 1.0; let offsetX = 0; let offsetY = 0;
+        let isDragging = false; let lastMouseX = 0; let lastMouseY = 0;
+        const zoomFactor = 1.1;
+
+        // --- 檔案讀取監聽 ---
+        
+        // ETABS 檔案監聽
+        etFileInput.addEventListener('change', (event) => {
+             const dxfBtn = document.getElementById('downloadDxfButton'); if(dxfBtn) dxfBtn.disabled = true;
+             const file = event.target.files[0];
+             drawStatus.textContent = '(閒置中)';
+             if (file) {
+                 showMessage(`正在載入 ${file.name}...`, true); drawStatus.textContent = '(讀取中...)';
+                 readFileAsText(file).then(content => {
+                     etFileData = content;
+                     showMessage(`.$et 檔案已載入。請貼上基樁資料後繪製。`); drawStatus.textContent = '(就緒)';
+                 }).catch(error => { showError(`讀取 .$et 檔案失敗: ${error.message}`); etFileData = null; drawStatus.textContent = '(錯誤!)'; });
+             } else { etFileData = null; showMessage("已取消選擇 .$et 檔案。"); }
+        });
+
+        // --- 繪製按鈕 & 下拉選單改變時的觸發函數 ---
+        function triggerDraw() {
+            const dxfBtn = document.getElementById('downloadDxfButton'); if(dxfBtn) dxfBtn.disabled = true; 
+            
+            clearCanvas(); clearMessage();
+
+            // 1. 檢查並解析文字框內容
+            const pileContent = pileInputText.value;
+            if (!pileContent.trim()) { showError("請先在文字框中貼上基樁編號資料。"); return; }
+            
+            pileData = parsePileFile(pileContent);
+            if (Object.keys(pileData).length === 0) { 
+                showError("無法解析基樁資料，請檢查格式是否正確 (需包含標題列或三欄資料)。"); 
+                return; 
+            }
+
+            // 2. 檢查 ETABS 檔案
+            if (!etFileData) { showError("請先上傳並成功載入 .$et 檔案。"); return; }
+
+            showMessage("正在解析 .$ET 並合併繪製...", true);
+            drawStatus.textContent = '(繪製中...)';
+
+            setTimeout(() => {
+                let drawnPointCount = 0;
+                let gridXCount = 0;
+                let gridYCount = 0;
+                try {
+                    console.time("Parse ET, Merge and Draw");
+                    const etData = parseEtFile(etFileData); 
+                    
+                    if (Object.keys(etData.pointCoords).length === 0) {
+                         showError(`在 .$et 檔案中找不到任何 $ POINT COORDINATES 資料。`);
+                         drawStatus.textContent = '(錯誤!)'; currentMergedData = []; currentGridData = { X: [], Y: [] }; return;
+                    }
+                    
+                    currentGridData = etData.gridData; 
+                    currentMergedData = mergeData(etData.pointCoords, pileData); 
+                    
+                    calculateInitialTransform(currentMergedData); 
+
+                    redrawCanvas(); 
+                    
+                    console.timeEnd("Parse ET, Merge and Draw");
+                    drawnPointCount = currentMergedData.length;
+                    gridXCount = currentGridData.X.length;
+                    gridYCount = currentGridData.Y.length;
+                    
+                    showMessage(`繪製完成。共解析 ${Object.keys(pileData).length} 筆基樁資料，其中 ${drawnPointCount} 個成功匹配座標。`);
+                    drawStatus.textContent = '(完成)';
+                    
+                    if(dxfBtn) dxfBtn.disabled = !(drawnPointCount > 0 || gridXCount > 0 || gridYCount > 0); 
+
+                } catch (error) {
+                    console.error("處理或繪製時發生錯誤:", error); showError(`處理或繪製時發生錯誤: ${error.message}.`); 
+                    drawStatus.textContent = '(錯誤!)'; 
+                    currentMergedData = []; 
+                    currentGridData = { X: [], Y: [] };
+                    if(dxfBtn) dxfBtn.disabled = true;
+                } finally { if (messageArea.classList.contains('processing')) clearMessage(); }
+            }, 50);
+        }
+
+        // --- 事件綁定 ---
+        drawButton.addEventListener('click', triggerDraw);
+
+        // --- 檔案讀取 (CP950) ---
+        function readFileAsText(file) {
+             return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(error);
+                const encoding = 'CP950'; 
+                reader.readAsText(file, encoding);
+             });
+        }
+
+        // --- 解析 基樁編號 文字內容 (含樁徑或矩形尺寸) ---
+        function parsePileFile(content) {
+            console.log("[Pile Parse] 開始解析文字框內容...");
+            const pileMap = {};
+            const lines = content.split(/\r?\n/);
+            let parsedCount = 0;
+            
+            let startIndex = 1;
+            const firstLine = lines[0] ? lines[0].trim() : '';
+            if (firstLine) {
+                const parts0 = firstLine.split(/\s+/);
+                if (parts0.length >= 2 && !isNaN(parts0[1])) {
+                    startIndex = 0;
+                    console.log("[Pile Parse] 偵測到第一行可能是數據，從第一行開始解析");
+                }
+            }
+
+            for (let i = startIndex; i < lines.length; i++) { 
+                const line = lines[i].trim();
+                if (!line) continue;
+                const parts = line.split(/\s+/);
+                
+                if (parts.length >= 3) {
+                    const pileLabel = parts[0];
+                    const pointID = parts[1];
+                    const sizeStr = parts[2]; 
+
+                    let shape = 'circle';
+                    let w = 0, h = 0;
+
+                    if (sizeStr.toLowerCase().indexOf('x') !== -1) {
+                        const dims = sizeStr.toLowerCase().split('x');
+                        if (dims.length >= 2) {
+                            w = parseFloat(dims[0]);
+                            h = parseFloat(dims[1]);
+                            shape = 'rect';
+                        }
+                    } else {
+                        w = parseFloat(sizeStr);
+                        h = w;
+                        shape = 'circle';
+                    }
+                    
+                    if (pileLabel && pointID && !isNaN(w) && !isNaN(h)) {
+                        pileMap[pointID] = { label: pileLabel, shape: shape, width: w, height: h };
+                        parsedCount++;
+                    }
+                }
+            }
+            console.log(`[Pile Parse] 解析完成，共 ${parsedCount} 個對應。`);
+            return pileMap;
+        }
+
+        // --- 解析 .$ET 檔案 ---
+        function parseEtFile(etContent) {
+            console.log(`[ET Parse] 開始解析 ET 檔案，目標: $ POINT COORDINATES 和 $ GRIDS`);
+            const lines = etContent.split(/\r?\n/); 
+            const pointCoords = {};
+            const gridData = { X: [], Y: [] };
+            let pointCount = 0; 
+            let gridCount = 0;
+            let currentSection = null;
+            
+            const trimQuotes = (str) => (str && str.startsWith('"') && str.endsWith('"')) ? str.slice(1, -1) : str;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('$')) {
+                    const sectionNameMatch = line.match(/^\$\s*([A-Z\s]+)/);
+                    if (sectionNameMatch) {
+                        const potentialSection = '$ ' + sectionNameMatch[1].trim();
+                        if (potentialSection === '$ POINT COORDINATES') {
+                            currentSection = '$ POINT COORDINATES';
+                            if (lines[i+1] && lines[i+1].trim().startsWith('TABLE:')) i++; 
+                            continue;
+                        } else if (potentialSection === '$ GRIDS') {
+                            currentSection = '$ GRIDS';
+                            if (lines[i+1] && lines[i+1].trim().startsWith('TABLE:')) i++; 
+                            continue;
+                        } else {
+                            currentSection = null;
+                        }
+                    } else currentSection = null;
+                }
+                
+                if (line === "" || line.startsWith('TABLE:') || line.startsWith(';')) continue;
+                
+                try {
+                    if (currentSection === '$ POINT COORDINATES') {
+                        const parts = line.split(/\s+/).filter(p => p !== ''); 
+                        if (parts.length >= 4 && parts[0].toUpperCase() === 'POINT') { 
+                            const pointNum = trimQuotes(parts[1]); 
+                            const x = parseFloat(parts[2]); 
+                            const y = parseFloat(parts[3]); 
+                            if (!isNaN(x) && !isNaN(y)) { 
+                                pointCoords[pointNum] = { x, y }; 
+                                pointCount++; 
+                            } 
+                        }
+                    } else if (currentSection === '$ GRIDS') {
+                        if (line.toUpperCase().startsWith('GRID ')) {
+                            const labelMatch = line.match(/LABEL\s+"([^"]+)"/i);
+                            const dirMatch = line.match(/DIR\s+"([^"]+)"/i);
+                            const coordMatch = line.match(/COORD\s+([-\d\.]+)/i);
+
+                            if (labelMatch && dirMatch && coordMatch) {
+                                const label = labelMatch[1];
+                                const dir = dirMatch[1].toUpperCase();
+                                const coord = parseFloat(coordMatch[1]);
+                                
+                                if (dir === 'X') {
+                                    gridData.X.push({ label, coord });
+                                    gridCount++;
+                                } else if (dir === 'Y') {
+                                    gridData.Y.push({ label, coord });
+                                    gridCount++;
+                                }
+                            }
+                        }
+                    }
+                } catch (parseError) { 
+                    console.warn(`[ET Parse] 解析 ${currentSection} 行時出錯: "${line.substring(0, 80)}..."`, parseError); 
+                }
+            }
+            console.log(`[ET Parse] 掃描完成 - 點: ${pointCount}, 網格線: ${gridCount}`);
+            return { pointCoords, gridData };
+        }
+
+
+        // --- 合併資料 ---
+        function mergeData(pointCoords, pileMap) {
+            const merged = []; 
+            let matchCount = 0;
+            let coordNotFoundCount = 0;
+            console.log(`[MergeData] 開始合併 ${Object.keys(pileMap).length} 個基樁點...`);
+            
+            for (const pointID in pileMap) {
+                const pileInfo = pileMap[pointID]; 
+                const coords = pointCoords[pointID];
+                
+                if (coords && pileInfo) {
+                    merged.push({ 
+                        x: coords.x, 
+                        y: coords.y, 
+                        label: pileInfo.label, 
+                        pointID: pointID,
+                        shape: pileInfo.shape,
+                        width: pileInfo.width,
+                        height: pileInfo.height
+                    });
+                    matchCount++;
+                } else {
+                    coordNotFoundCount++;
+                    if (pileInfo) {
+                        console.warn(`[MergeData] 找不到 ETABS 點 ${pointID} (基樁 ${pileInfo.label}) 的座標。`);
+                    }
+                }
+            }
+            
+            console.log(`[MergeData] 合併完成: ${matchCount} 個點成功匹配座標， ${coordNotFoundCount} 個點缺少座標。`);
+            return merged;
+        }
+
+
+        // --- 計算初始視圖 ---
+        function calculateInitialTransform(points) {
+             if (!points || points.length === 0) { 
+                 scale = 1; offsetX = 0; offsetY = 0; return; 
+             }
+             
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; 
+            let hasValidCoords = false;
+            
+            points.forEach(p => { 
+                if (!isNaN(p.x) && !isNaN(p.y)) { 
+                    minX = Math.min(minX, p.x); 
+                    minY = Math.min(minY, p.y); 
+                    maxX = Math.max(maxX, p.x); 
+                    maxY = Math.max(maxY, p.y); 
+                    hasValidCoords = true; 
+                } 
+            });
+            
+            if (!hasValidCoords) { scale = 1; offsetX = 0; offsetY = 0; return; }
+            if (minX === maxX) { minX -= 1; maxX += 1; } 
+            if (minY === maxY) { minY -= 1; maxY += 1; }
+            if (minX === Infinity) { scale = 1; offsetX = 0; offsetY = 0; return; }
+            
+            const padding = 50; 
+            const canvasWidth = canvas.width - 2 * padding; 
+            const canvasHeight = canvas.height - 2 * padding;
+            const dataWidth = maxX - minX; 
+            const dataHeight = maxY - minY;
+            const scaleX = dataWidth === 0 ? 1 : canvasWidth / dataWidth;
+            const scaleY = dataHeight === 0 ? 1 : canvasHeight / dataHeight;
+            
+            scale = Math.min(scaleX, scaleY) * 0.95;
+            offsetX = padding + (canvasWidth - dataWidth * scale) / 2 - minX * scale;
+            offsetY = padding + (canvasHeight - dataHeight * scale) / 2 + maxY * scale;
+            
+            console.log(`[Initial Transform] (Points-Only) scale=${scale.toFixed(3)}, offsetX=${offsetX.toFixed(1)}, offsetY=${offsetY.toFixed(1)}`);
+        }
+
+        // --- 主繪圖函數 ---
+        function redrawCanvas() {
+            clearCanvas();
+            
+            const baseFontSize = 10; 
+            const minFontSize = 5;  
+            const maxFontSize = 20; 
+            let dynamicFontSize = baseFontSize * Math.sqrt(scale);
+            dynamicFontSize = Math.max(minFontSize, Math.min(maxFontSize, dynamicFontSize));
+            
+            drawGrids(currentGridData, dynamicFontSize);
+            drawPoints(currentMergedData, dynamicFontSize);
+        }
+
+        // --- 繪製網格 ---
+        function drawGrids(gridData, dynamicFontSize) {
+            if (!gridData) return;
+            
+            const transformX = (worldX) => worldX * scale + offsetX;
+            const transformY = (worldY) => offsetY - worldY * scale; // Flip Y
+            
+            const canvasMinX = 0, canvasMaxX = canvas.width;
+            const canvasMinY = 0, canvasMaxY = canvas.height;
+            
+            const xLabelYPos = canvasMinY + dynamicFontSize * 1.2; 
+            const yLabelXPos = canvasMinX + dynamicFontSize * 1.5; 
+
+            ctx.strokeStyle = '#cccccc'; 
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]); 
+            
+            gridData.X.forEach(grid => {
+                const tx = transformX(grid.coord);
+                if (tx >= canvasMinX && tx <= canvasMaxX) { 
+                    ctx.beginPath();
+                    ctx.moveTo(tx, canvasMinY);
+                    ctx.lineTo(tx, canvasMaxY);
+                    ctx.stroke();
+                }
+            });
+            
+            gridData.Y.forEach(grid => {
+                const ty = transformY(grid.coord);
+                 if (ty >= canvasMinY && ty <= canvasMaxY) { 
+                    ctx.beginPath();
+                    ctx.moveTo(canvasMinX, ty);
+                    ctx.lineTo(canvasMaxX, ty);
+                    ctx.stroke();
+                }
+            });
+            
+            ctx.setLineDash([]); 
+            
+            ctx.fillStyle = '#555';
+            ctx.font = `bold ${dynamicFontSize}px Arial`;
+            
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom'; 
+            
+            gridData.X.forEach(grid => {
+                const tx = transformX(grid.coord);
+                if (tx >= canvasMinX && tx <= canvasMaxX) {
+                    ctx.fillText(grid.label, tx, xLabelYPos);
+                }
+            });
+            
+            ctx.textAlign = 'right'; 
+            ctx.textBaseline = 'middle';
+
+            gridData.Y.forEach(grid => {
+                const ty = transformY(grid.coord);
+                if (ty >= canvasMinY && ty <= canvasMaxY) {
+                    ctx.fillText(grid.label, yLabelXPos, ty);
+                }
+            });
+        }
+
+
+        // --- 繪製點位 ---
+        function drawPoints(points, dynamicFontSize) {
+            const transformX = (worldX) => worldX * scale + offsetX;
+            const transformY = (worldY) => offsetY - worldY * scale; // Flip Y
+            
+            const crosshairSize = 5; 
+
+            points.forEach(point => {
+                if (isNaN(point.x) || isNaN(point.y)) return;
+                
+                const tx = transformX(point.x); 
+                const ty = transformY(point.y);
+
+                // 1. 繪製樁身
+                ctx.strokeStyle = '#aaaaaa'; 
+                ctx.lineWidth = 1;
+
+                if (point.shape === 'rect') {
+                    const w_canvas = point.width * scale;
+                    const h_canvas = point.height * scale;
+                    ctx.beginPath();
+                    ctx.rect(tx - w_canvas / 2, ty - h_canvas / 2, w_canvas, h_canvas);
+                    ctx.stroke();
+                } else if (!isNaN(point.width) && point.width > 0) {
+                    const radius_canvas = (point.width / 2) * scale;
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, radius_canvas, 0, 2 * Math.PI, false);
+                    ctx.stroke();
+                }
+
+                // 2. 繪製十字標記
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(tx - crosshairSize, ty);
+                ctx.lineTo(tx + crosshairSize, ty);
+                ctx.moveTo(tx, ty - crosshairSize);
+                ctx.lineTo(tx, ty + crosshairSize);
+                ctx.stroke();
+
+                // 3. 繪製基樁編號
+                ctx.font = `bold ${dynamicFontSize}px Arial`;
+                ctx.fillStyle = 'blue';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(point.label, tx, ty - (crosshairSize + 2));
+
+                // 4. 繪製 ETABS 點編號
+                ctx.font = `bold ${dynamicFontSize * 0.8}px Arial`; 
+                ctx.fillStyle = '#555'; 
+                ctx.textBaseline = 'top';
+                ctx.fillText(`(${point.pointID})`, tx, ty + (crosshairSize + 2));
+            });
+        }
+
+        // --- Mouse Events for Zoom and Pan ---
+        canvasContainer.addEventListener('wheel', (event) => {
+            event.preventDefault();
+            const rect = canvas.getBoundingClientRect(); const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top;
+            const worldXBefore = (mouseX - offsetX) / scale; const worldYBefore = (offsetY - mouseY) / scale;
+            const delta = event.deltaY < 0 ? zoomFactor : 1 / zoomFactor; const newScale = scale * delta;
+            scale = newScale; 
+            offsetX = mouseX - worldXBefore * scale; offsetY = mouseY + worldYBefore * scale;
+            window.requestAnimationFrame(redrawCanvas); 
+        });
+        canvasContainer.addEventListener('mousedown', (event) => { if(event.button !== 0) return; isDragging = true; lastMouseX = event.clientX; lastMouseY = event.clientY; canvasContainer.style.cursor = 'grabbing'; });
+        canvasContainer.addEventListener('mousemove', (event) => { if (!isDragging) return; const deltaX = event.clientX - lastMouseX; const deltaY = event.clientY - lastMouseY; offsetX += deltaX; offsetY += deltaY; lastMouseX = event.clientX; lastMouseY = event.clientY; window.requestAnimationFrame(redrawCanvas); 
+        });
+        canvasContainer.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; canvasContainer.style.cursor = 'grab'; } });
+        canvasContainer.addEventListener('mouseleave', () => { if (isDragging) { isDragging = false; canvasContainer.style.cursor = 'grab'; } });
+
+        // --- Custom Context Menu Logic ---
+        canvasContainer.addEventListener('contextmenu', (event) => {
+            event.preventDefault(); hideContextMenu(); const { clientX: mouseX, clientY: mouseY } = event;
+            customContextMenu.style.top = `${mouseY}px`; customContextMenu.style.left = `${mouseX}px`; customContextMenu.style.display = 'block';
+        });
+        window.addEventListener('click', (event) => { if (!customContextMenu.contains(event.target)) hideContextMenu(); });
+        resetViewOption.addEventListener('click', () => { resetView(); hideContextMenu(); });
+        saveImageOption.addEventListener('click', () => { downloadCanvasImage(); hideContextMenu(); });
+        copyImageOption.addEventListener('click', () => { copyCanvasImage(); hideContextMenu(); });
+        function hideContextMenu() { customContextMenu.style.display = 'none'; }
+
+
+        // --- Reset View Function ---
+        function resetView() {
+            if (currentMergedData.length > 0) {
+                calculateInitialTransform(currentMergedData); 
+                redrawCanvas(); 
+                showMessage("視圖已重設回初始狀態。");
+                drawStatus.textContent = '(完成)';
+            }
+        }
+
+        // --- Download Canvas Image Function ---
+        function downloadCanvasImage() {
+            if (currentMergedData.length === 0 && currentGridData.X.length === 0) { showError("沒有圖面資料可供下載。"); return; }
+            try {
+                const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = '#ffffff'; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+                const originalCtx = ctx; 
+                ctx = tempCtx;           
+                redrawCanvas(); 
+                ctx = originalCtx;       
+
+                const dataURL = tempCanvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `Pile_Plan_with_Grids.png`;
+                link.href = dataURL; link.click();
+                showMessage("圖片下載已觸發...");
+            } catch (error) { console.error("下載圖片時發生錯誤:", error); showError("下載圖片失敗。"); }
+        }
+
+        // --- Copy Canvas Image Function ---
+        async function copyCanvasImage() {
+            if (currentMergedData.length === 0 && currentGridData.X.length === 0) { showError("沒有圖面資料可供複製。"); return; }
+            if (!navigator.clipboard || !navigator.clipboard.write) { showError("您的瀏覽器不支援直接複製圖片。請嘗試'另存圖片'後手動複製。"); console.warn("Clipboard API (write) not supported."); return; }
+            try {
+                const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = '#ffffff'; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+                const originalCtx = ctx; 
+                ctx = tempCtx;           
+                redrawCanvas(); 
+                ctx = originalCtx;       
+
+                tempCanvas.toBlob(async (blob) => { 
+                    if (!blob) { showError("無法將 Canvas 轉換為 Blob 進行複製。"); return; }
+                    try { await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]); showMessage("圖片已複製到剪貼簿。"); }
+                    catch (err) { console.error('無法寫入剪貼簿:', err); showError("複製圖片到剪貼簿失敗。可能需要瀏覽器權限。"); }
+                }, 'image/png');
+            } catch (error) { console.error("複製圖片時發生錯誤:", error); showError("複製圖片失敗。"); }
+        }
+
+
+        // --- UI 輔助 ---
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        function showMessage(msg, isProcessing = false) { messageArea.textContent = msg; messageArea.className = isProcessing ? 'processing' : ''; messageArea.style.display = 'block'; if (!isProcessing) setTimeout(() => { if (messageArea.textContent === msg && !messageArea.classList.contains('error')) clearMessage(); }, 7000); }
+        function showError(msg) { messageArea.textContent = msg; messageArea.className = 'error'; messageArea.style.display = 'block'; drawStatus.textContent = '(錯誤!)'; }
+        function clearMessage() { messageArea.textContent = ''; messageArea.style.display = 'none'; messageArea.className = ''; }
+
+
+        // --- START OF ADDED DXF CODE ---
+        function initDxfButton() {
+            const dxfButton = document.getElementById('downloadDxfButton'); 
+            if (!dxfButton) { return; }
+
+            // --- DXF Generation Helper Functions ---
+            function dxfHeader() { return `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n`; }
+            
+            function dxfTables() {
+                let layers = `0\nTABLE\n2\nLAYER\n70\n8 \n`; layers += `0\nLAYER\n2\n0\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+                const layerDefs = [ 
+                    { name: "GRIDS", color: 9 },         
+                    { name: "GRID_LABELS", color: 8 },
+                    { name: "PILE_CIRCLES", color: 8 },  
+                    { name: "PILE_MARKER", color: 1 },    
+                    { name: "PILE_LABEL", color: 5 },     
+                    { name: "POINT_ID_LABEL", color: 8 } 
+                ];
+                layerDefs.forEach(l => { layers += `0\nLAYER\n2\n${l.name}\n70\n0\n62\n${l.color}\n6\nCONTINUOUS\n`; });
+                layers += `0\nENDTAB\n`; return `0\nSECTION\n2\nTABLES\n${layers}0\nENDSEC\n`;
+            }
+
+            function dxfLine(x1, y1, x2, y2, layer) { return `0\nLINE\n8\n${layer}\n10\n${x1.toFixed(4)}\n20\n${y1.toFixed(4)}\n30\n0.0\n11\n${x2.toFixed(4)}\n21\n${y2.toFixed(4)}\n31\n0.0\n`; }
+            
+            function dxfCircle(x, y, radius, layer) {
+                return `0\nCIRCLE\n8\n${layer}\n10\n${x.toFixed(4)}\n20\n${y.toFixed(4)}\n30\n0.0\n40\n${radius.toFixed(4)}\n`;
+            }
+
+            function dxfText(x, y, height, rotation, text, layer, align = 0) {
+                let alignHoriz = 0; let alignVert = 0; 
+                let x_coord = x.toFixed(4), y_coord = y.toFixed(4);
+                if (align === 2) { alignHoriz = 2; alignVert = 2; } 
+                else if (align === 7) { alignHoriz = 1; alignVert = 1; } 
+                else if (align === 8) { alignHoriz = 1; alignVert = 3; } 
+                let alignmentCodes = `72\n${alignHoriz}\n73\n${alignVert}\n`;
+                if (alignHoriz > 0 || alignVert > 0) {
+                    alignmentCodes += `11\n${x_coord}\n21\n${y_coord}\n31\n0.0\n`;
+                }
+                return `0\nTEXT\n8\n${layer}\n10\n${x_coord}\n20\n${y_coord}\n30\n0.0\n40\n${height.toFixed(4)}\n1\n${text.replace(/[\n\r]/g, '')} \n50\n${rotation.toFixed(4)}\n${alignmentCodes}`;
+            }
+
+            // [修改] 產生 DXF 的核心邏輯
+            function generateDxfContent() {
+                let dxf = dxfHeader(); dxf += dxfTables(); dxf += `0\nSECTION\n2\nENTITIES\n`;
+                const textHeight = 1.0; const gridLabelHeight = 1.25; const margin = 5.0; 
+                
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                currentMergedData.forEach(p => { 
+                    if (!isNaN(p.x)) { 
+                        minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); 
+                        maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); 
+                    } 
+                });
+                
+                 if (minX === Infinity) { 
+                     minX = (currentGridData.X.length > 0 ? currentGridData.X.reduce((min, g) => Math.min(min, g.coord), Infinity) : 0) - margin; maxX = (currentGridData.X.length > 0 ? currentGridData.X.reduce((max, g) => Math.max(max, g.coord), -Infinity) : 0) + margin;
+                     minY = (currentGridData.Y.length > 0 ? currentGridData.Y.reduce((min, g) => Math.min(min, g.coord), Infinity) : 0) - margin; maxY = (currentGridData.Y.length > 0 ? currentGridData.Y.reduce((max, g) => Math.max(max, g.coord), -Infinity) : 0) + margin;
+                     if (minX === Infinity - margin || isNaN(minX)) { minX = -10; maxX = 10; minY = -10; maxY = 10; } 
+                 } else { minX -= margin; minY -= margin; maxX += margin; maxY += margin; }
+                
+                currentGridData.X.forEach(grid => { 
+                    dxf += dxfLine(grid.coord, minY, grid.coord, maxY, "GRIDS"); 
+                    dxf += dxfText(grid.coord, maxY + gridLabelHeight * 0.5, gridLabelHeight, 0, grid.label, "GRID_LABELS", 8);
+                });
+                currentGridData.Y.forEach(grid => { 
+                    dxf += dxfLine(minX, grid.coord, maxX, grid.coord, "GRIDS"); 
+                    dxf += dxfText(minX - gridLabelHeight * 0.5, grid.coord, gridLabelHeight, 0, grid.label, "GRID_LABELS", 2);
+                });
+                
+                const crosshairSize = 0.05; 
+                const labelOffset = 0.08;   
+                const pointIdHeight = textHeight * 0.8; 
+
+                currentMergedData.forEach(point => {
+                    if (isNaN(point.x) || isNaN(point.y)) return;
+                    
+                    const x = point.x;
+                    const y = point.y;
+
+                    // 1. 繪製樁身
+                    if (point.shape === 'rect') {
+                        const w = point.width;
+                        const h = point.height;
+                        const x1 = x - w/2; const y1 = y - h/2;
+                        const x2 = x + w/2; const y2 = y - h/2;
+                        const x3 = x + w/2; const y3 = y + h/2;
+                        const x4 = x - w/2; const y4 = y + h/2;
+                        
+                        dxf += dxfLine(x1, y1, x2, y2, "PILE_CIRCLES");
+                        dxf += dxfLine(x2, y2, x3, y3, "PILE_CIRCLES");
+                        dxf += dxfLine(x3, y3, x4, y4, "PILE_CIRCLES");
+                        dxf += dxfLine(x4, y4, x1, y1, "PILE_CIRCLES");
+                    } else if (!isNaN(point.width) && point.width > 0) {
+                        const radius_world = point.width / 2;
+                        dxf += dxfCircle(x, y, radius_world, "PILE_CIRCLES");
+                    }
+
+                    // 2. 繪製十字標記
+                    dxf += dxfLine(x - crosshairSize, y, x + crosshairSize, y, "PILE_MARKER");
+                    dxf += dxfLine(x, y - crosshairSize, x, y + crosshairSize, "PILE_MARKER");
+
+                    // 3. 繪製基樁編號
+                    dxf += dxfText(x, y - labelOffset, textHeight, 0, point.label, "PILE_LABEL", 8); 
+
+                    // 4. 繪製 ETABS 點編號
+                    dxf += dxfText(x, y + labelOffset, pointIdHeight, 0, `(${point.pointID})`, "POINT_ID_LABEL", 7);
+                });
+
+                dxf += `0\nENDSEC\n0\nEOF\n`; return dxf;
+            }
+
+            function downloadDxfFile(dxfContent, filename) {
+                const blob = new Blob([dxfContent], { type: 'application/dxf' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100); 
+            }
+
+            // --- DXF Button Event Listener ---
+            dxfButton.addEventListener('click', () => { 
+                 if (currentMergedData.length > 0 || (currentGridData && (currentGridData.X.length > 0 || currentGridData.Y.length > 0))) {
+                     showMessage("正在生成 DXF 檔案...", true); drawStatus.textContent = '(生成 DXF...)';
+                     setTimeout(() => { 
+                         try { 
+                             const dxfContent = generateDxfContent(); 
+                             const filename = `Pile_Plan_with_Grids.dxf`;
+                             downloadDxfFile(dxfContent, filename); 
+                             showMessage("DXF 檔案下載已觸發。"); drawStatus.textContent = '(完成)';
+                         } catch (error) { 
+                             console.error("生成或下載 DXF 時出錯:", error); showError(`生成或下載 DXF 時出錯: ${error.message}`); 
+                             drawStatus.textContent = '(錯誤!)'; 
+                         } 
+                         finally { if (messageArea.classList.contains('processing')) clearMessage(); } 
+                     }, 50);
+                 } else { showError("沒有資料可供生成 DXF。請先繪製平面圖。"); } 
+            });
+        }
+        // --- END OF ADDED DXF CODE ---
+
+        window.onload = initDxfButton;
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,2729 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETABS 檢視器 (3D + 2D Frame + 2D Plan) - 應力比整合版 (V-Fix)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* --- 1. 來自 模型.html 的既有樣式 --- */
+        body { font-family: "Inter", sans-serif; }
+        .drag-over { background-color: #e6efff; border-color: #3b82f6; }
+        .table-title { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 1rem; color: #1f2937; }
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; right: 0; background-color: #f9f9f9; min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 10; border-radius: 0.5rem; overflow: hidden; }
+        .dropdown-content button { color: #1f2937; padding: 12px 16px; text-decoration: none; display: block; width: 140px; text-align: left; background: none; border: none; cursor: pointer; }
+        .dropdown-content button:hover { background-color: #e5e7eb; }
+        .dropdown-content button { color: #1f2937; padding: 12px 16px; text-decoration: none; display: block; width: 140px; text-align: left; background: none; border: none; cursor: pointer; }
+        .dropdown-content button:hover { background-color: #e5e7eb; }
+        
+        /* --- VVVV 請在這裡加入這段 VVVV --- */
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        /* --- ^^^^ 請在這裡加入這段 ^^^^ --- */
+        
+/* --- 修正後的代碼 (請替換上方錯誤區塊) --- */
+        #threeDContainer {
+            height: 600px;
+            background-color: #f3f4f6;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            position: relative;
+            margin-top: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #threeDContainer canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- 2. (ID 重構) 2D 構架圖 (Frame) 樣式 --- */
+        .input-group { /* 共享樣式 */
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        
+        #frameDrawingOptions { /* (ID 修改) */
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: none;
+            font-size: 0.9em;
+        }
+        #frameDrawingOptions .option-group {
+            margin-top: 8px;
+        }
+        #frameDrawingOptions .option-group label {
+            margin-left: 0;
+            margin-right: 5px;
+        }
+        #frameDrawingOptions input[type="number"] {
+            width: 50px;
+            padding: 3px 5px;
+            margin-right: 10px;
+            border: 1px solid #ccc; border-radius: 4px;
+        }
+
+        #frameCanvasContainer { /* (ID 修改) */
+            margin-top: 20px;
+            border: 1px solid black;
+            width: 100%;
+            height: 700px;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            background-color: #ffffff;
+        }
+        #frameCanvasContainer:active { cursor: grabbing; }
+        #frameCanvas { /* (ID 修改) */
+            display: block;
+            background-color: #ffffff;
+        }
+         #frameMessageArea { /* (ID 修改) */
+            position: absolute; top: 10px; left: 10px; background-color: rgba(255, 255, 255, 0.85);
+            padding: 10px; border-radius: 5px; display: none; max-width: 90%; z-index: 10;
+            border: 1px solid #ccc; pointer-events: none;
+        }
+        #frameMessageArea.error { background-color: rgba(248, 215, 218, 0.9); color: #721c24; border: 1px solid #f5c6cb; }
+        #frameMessageArea.processing { background-color: rgba(224, 224, 224, 0.9); color: #333; }
+        
+        #frameCustomContextMenu { /* (ID 修改) */
+            position: absolute; display: none; background-color: #f1f1f1; border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1000; min-width: 150px; border-radius: 4px;
+        }
+        .menu-item { /* 共享樣式 */
+            padding: 8px 12px; cursor: pointer; font-size: 0.9em;
+        }
+        .menu-item:hover { background-color: #007bff; color: white; }
+
+        #frameTooltip { /* (ID 修改) */
+            position: absolute; display: none; background-color: rgba(0, 0, 0, 0.8);
+            color: white; padding: 8px 12px; border-radius: 5px; font-size: 0.9em;
+            z-index: 20; pointer-events: none; line-height: 1.4;
+        }
+        #frameTooltip b { color: #66ff66; }
+
+       /* --- 3. (*** 新增 ***) 2D 平面圖 (Plan) 樣式 (修正版) --- */
+
+        /* 1. (*** 修正 ***) 隱藏「繪製平面圖」按鈕 (因為已自動繪製) */
+        #planDrawButton {
+            display: none !important;
+        }
+
+        /* 2. (*** 修正 ***) 強制 DXF 下載按鈕為「紫色」 */
+        #downloadDxfButton, 
+        #frameDownloadDxfButton {
+            background-color: #8b5cf6 !important; /* 紫色 */
+            color: #ffffff !important;
+            border: 1px solid #7c3aed !important;
+            margin-left: 10px !important;
+            opacity: 1 !important;
+            display: inline-block !important;
+        }
+        #downloadDxfButton:hover, 
+        #frameDownloadDxfButton:hover {
+            background-color: #7c3aed !important; /* 深紫色 */
+        }
+
+        /* 3. 禁用狀態的按鈕樣式 */
+        #downloadDxfButton:disabled,
+        #frameDownloadDxfButton:disabled {
+            background-color: #9ca3af !important; /* 灰色 */
+            border-color: #9ca3af !important;
+            cursor: not-allowed !important;
+            opacity: 0.7 !important;
+        }
+
+        /* 4. 通用按鈕樣式 (確保沒被 Tailwind 重置) */
+        .plan-button {
+            padding: 8px 12px !important;
+            border-radius: 4px !important;
+            font-size: 1rem !important;
+            cursor: pointer !important;
+            background-color: #007bff; /* 預設藍色 */
+            color: white;
+            border: 1px solid #ccc;
+        }
+
+        /* 5. 繪圖選項區塊 */
+        #planDrawingOptions, #frameDrawingOptions {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        #planDrawingOptions .option-group, #frameDrawingOptions .option-group { margin-top: 8px; }
+        #planDrawingOptions input[type="number"], #frameDrawingOptions input[type="number"] {
+            width: 50px; padding: 3px 5px; margin-right: 10px;
+            border: 1px solid #ccc; border-radius: 4px;
+        }
+        
+        /* 6. (*** 修正 ***) Tooltip 樣式 - 使用 absolute 相對容器定位 */
+        #planTooltip, #frameTooltip {
+            position: absolute !important; /* 相對於 Canvas 容器 */
+            display: none; 
+            background-color: rgba(0, 0, 0, 0.85) !important; /* 深黑半透明 */
+            color: white !important; 
+            padding: 8px 12px !important; 
+            border-radius: 4px !important; 
+            font-size: 14px !important;
+            z-index: 100 !important; 
+            pointer-events: none; /* 讓滑鼠不被 Tooltip 擋住 */
+            line-height: 1.4;
+            white-space: nowrap;
+            top: 0; left: 0; /* 預設歸零，由 JS 控制 */
+        }
+        #planTooltip b, #frameTooltip b { color: #66ff66 !important; }
+
+        /* 7. 聚焦框 (避免鍵盤操作混淆) */
+        #planCanvasContainer:focus, #frameCanvasContainer:focus {
+            outline: 2px solid #007bff;
+            outline-offset: -2px;
+        }
+
+
+        #planCanvasContainer { /* (ID 新增) */
+            margin-top: 20px; border: 1px solid black; width: 100%; height: 700px; 
+            position: relative; overflow: hidden; cursor: grab;
+        }
+        #planCanvasContainer:active { cursor: grabbing; }
+        #planCanvas { /* (ID 新增) */
+            display: block; background-color: #ffffff; 
+        }
+        #planMessageArea { /* (ID 新增) */
+            position: absolute; top: 10px; left: 10px; background-color: rgba(255, 255, 255, 0.85);
+            padding: 10px; border-radius: 5px; display: none; max-width: 90%; z-index: 10;
+            border: 1px solid #ccc; pointer-events: none;
+        }
+        #planMessageArea.error { background-color: rgba(248, 215, 218, 0.9); color: #721c24; border: 1px solid #f5c6cb; }
+        #planMessageArea.processing { background-color: rgba(224, 224, 224, 0.9); color: #333; }
+        
+        #planCustomContextMenu { /* (ID 新增) */
+            position: absolute; display: none; background-color: #f1f1f1; border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1000; min-width: 150px; border-radius: 4px;
+        }
+        
+        /* (*** 修改 ***) 應力比圖例樣式 (改為 Class) */
+        .legend-style {
+            /* (*** 修正 ***) margin-top: 10px 改為 margin-top: 1rem (16px) */
+            margin-top: 1rem;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .legend-style span {
+            display: inline-block;
+            width: 20px;
+            height: 10px;
+            margin-right: 5px;
+            border: 1px solid #eee;
+            vertical-align: middle;
+        }
+        /* --- 樣式結束 --- */
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+
+    <div id="app" class="bg-white rounded-lg shadow-xl p-6 md:p-10 w-full max-w-7xl mx-auto">
+        
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">
+            ETABS 檢視器 (3D + 2D Frame + 2D Plan) - 應力比整合版 (V-Fix)
+        </h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div 
+                @click="triggerFileInput"
+                @dragover.prevent="isDragOver = true"
+                @dragleave="isDragOver = false"
+                @drop.prevent="handleFileDrop"
+                :class="{'drag-over': isDragOver}"
+                class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
+            >
+                <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden" accept=".txt, .$et">
+                <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28m0 0l-3.172-3.172a4 4 0 00-5.656 0L12 32m16-4v4m-4-4H8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="mt-1 text-sm text-gray-600">
+                    1. 上傳 <code class="font-mono text-blue-600">.$et</code> 檔案
+                </p>
+                <p id="fileName" class="text-xs text-gray-500 mt-1 truncate">{{ fileName }}</p>
+            </div>
+            
+            <div 
+                @click="triggerMapInput"
+                class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-red-500 transition-colors"
+            >
+                <input type="file" ref="mapInput" @change="handleMapFileSelect" class="hidden" accept=".map">
+                <svg class="mx-auto h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                </svg>
+                <p class="mt-1 text-sm text-gray-600">
+                    2. 上傳 <code class="font-mono text-red-600">SRCOL.MAP</code> (可選)
+                </p>
+                <p id="mapFileName" class="text-xs text-gray-500 mt-1 truncate">{{ mapFileName }}</p>
+            </div>
+
+            <div 
+                @click="triggerMappingInput"
+                class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-green-500 transition-colors"
+            >
+                <input type="file" ref="mappingInput" @change="handleMappingFileSelect" class="hidden" accept=".txt">
+                 <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                 </svg>
+                <p class="mt-1 text-sm text-gray-600">
+                    3. 上傳 <code class="font-mono text-green-600">尺寸標示.TXT</code> (可選)
+                </p>
+                <p id="mappingFileName" class="text-xs text-gray-500 mt-1 truncate">{{ mappingFileName }}</p>
+            </div>
+        </div>
+
+        <div v-if="message" class="mt-4 text-center text-red-600 font-semibold">{{ message }}</div>
+
+        <div v-if="storyResults.length" class="mt-8 overflow-x-auto">
+            <h2 class="table-title">1. 樓層高程 (Story Elevations)</h2>
+            <table class="min-w-full divide-y divide-gray-200 bg-white shadow rounded-lg">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">樓層 (Story)</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">類型/層高</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">計算過程</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">絕對高程 (m)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr 
+                        v-for="story in storyResults" 
+                        :key="story.name" 
+                        :class="{'bg-yellow-50 font-bold': story.calculation === '(基準高程)'}"
+                        class="hover:bg-gray-50"
+                    >
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ story.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-mono">{{ story.typeInfo }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-mono">{{ story.calculation }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600 text-right font-mono">{{ formatElevation(story.elevation) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div v-if="memberData.length" id="memberStatsContainer" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h2 class="text-lg font-semibold mb-3 text-gray-700">桿件統計</h2>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                <div class="bg-indigo-100 p-3 rounded-lg">
+                    <p class="text-xs font-medium text-indigo-700">總桿件數</p>
+                    <p class="text-xl font-bold text-indigo-900">{{ memberStats.total }}</p>
+                </div>
+                <div class="bg-red-100 p-3 rounded-lg">
+                    <p class="text-xs font-medium text-red-700">柱 (C)</p>
+                    <p class="text-xl font-bold text-red-900">{{ memberStats.column }}</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-lg">
+                    <p class="text-xs font-medium text-blue-700">梁 (B)</p>
+                    <p class="text-xl font-bold text-blue-900">{{ memberStats.beam }}</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-lg">
+                    <p class="text-xs font-medium text-green-700">斜撐 (D)</p>
+                    <p class="text-xl font-bold text-green-900">{{ memberStats.brace }}</p>
+                </div>
+                <div v-if="memberStats.unknown > 0" class="bg-gray-200 p-3 rounded-lg">
+                    <p class="text-xs font-medium text-gray-700">未知</p>
+                    <p class="text-xl font-bold text-gray-900">{{ memberStats.unknown }}</p>
+                </div>
+            </div>
+        </div>
+
+
+        <div v-if="memberData.length" id="memberResultContainer" class="mt-8 overflow-x-auto">
+            
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="table-title m-0">2. 桿件空間座標 (Member Coordinates)</h2>
+                <div class="flex flex-wrap gap-2 justify-end">
+                    <button 
+                        @click="toggle3DViewer" :disabled="!memberData.length" 
+                        :class="{'bg-gray-400': !memberData.length, 'bg-indigo-600 hover:bg-indigo-700': memberData.length}"
+                        class="text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm"
+                    >
+                        {{ is3DVisible ? '隱藏 3D 預覽' : '顯示 3D 預覽' }}
+                    </button>
+                    <button 
+                        @click="toggle2DViewer" :disabled="!memberData.length"
+                        :class="{'bg-gray-400': !memberData.length, 'bg-teal-600 hover:bg-teal-700': memberData.length}"
+                        class="text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm"
+                    >
+					{{ is2DVisible ? '隱藏 2D 構架' : '顯示 2D 構架' }}
+                    </button>
+                    <button 
+                        @click="togglePlanViewer" :disabled="!memberData.length"
+                        :class="{'bg-gray-400': !memberData.length, 'bg-cyan-600 hover:bg-cyan-700': memberData.length}"
+                        class="text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm"
+                    >
+                        {{ isPlanVisible ? '隱藏 2D 平面' : '顯示 2D 平面' }}
+                    </button>
+                    <div class="dropdown">
+                        <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm">
+                            下載 CSV ▼
+                        </button>
+                        <div class="dropdown-content">
+                            <button v-for="type in downloadTypes" @click="downloadCsv(type)">
+                                下載 {{ type }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <p v-if="is3DVisible && (!is3DAttempted || isLoading3D)" id="threeDStatus" class="text-center text-gray-500 mt-2 p-2">
+                {{ isLoading3D ? '正在載入 3D 模組...' : '3D 預覽已就緒，載入數據...' }}
+            </p>
+            <div v-if="is3DVisible" id="threeDContainer"></div>
+            
+            <div v-if="is2DVisible" id="frameViewerContainer" class="mt-6">
+                <div id="frameControls" class="flex flex-wrap gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
+                    <div class="input-group flex-1 min-w-[250px] m-0 p-2 bg-white">
+                        <label for="frameSelector" class="block mb-1 font-bold text-sm">選擇構架線 (Frame)</label>
+                        <select id="frameSelector" class="w-full p-2 border rounded-md"></select>
+                    </div>
+                    
+                    <div class="input-group flex-1 min-w-[300px] m-0 p-2 bg-white">
+                        <label class="block mb-1 font-bold text-sm">繪圖選項</label>
+                        <div id="frameDrawingOptions" style="display: block; background-color: white; padding: 0; border: none; font-size: 1em;">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="frameShowTextToggle" checked class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                <label for="frameShowTextToggle" class="ml-2">顯示元件標籤</label>
+                            </div>
+                            <div class="option-group flex items-center">
+                                <label for="frameLabelFontSize">標籤字體 (px):</label>
+                                <input type="number" id="frameLabelFontSize" value="8" min="1" max="50" class="w-16 p-1 border rounded-md ml-2">
+                            </div>
+                            <div class="flex items-center mt-2">
+                                <input type="checkbox" id="frameShowRatioToggle" checked class="h-4 w-4 text-red-600 border-gray-300 rounded">
+                                <label for="frameShowRatioToggle" class="ml-2">顯示應力比</label>
+                            </div>
+                            <div class="option-group flex items-center">
+                                <label for="frameRatioFontSize">應力比字體 (px):</label>
+                                <input type="number" id="frameRatioFontSize" value="8" min="1" max="50" class="w-16 p-1 border rounded-md ml-2">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-end p-2">
+                        <button id="frameDownloadDxfButton" class="plan-button" disabled>
+                            下載 DXF
+                        </button> 
+                        <span id="frameDrawStatus" class="text-gray-600 italic ml-4">(閒置中)</span>
+                    </div>
+                </div>
+                <div id="frameCanvasContainer" style="width: 100%; height: 700px; max-width: none; margin-top: 0;">
+                     <div id="frameMessageArea"></div>
+                     <canvas id="frameCanvas" width="900" height="700"></canvas>
+                     <div id="frameTooltip"></div>
+                </div>
+                <div id="frameLegend" class="legend-style mt-4">
+                    <b>應力比顏色圖例:</b>
+                    <span style="background-color: blue;"></span> 0.0 &lt;=
+                    <span style="background-color: cyan;"></span> &lt; 0.4 &lt;=
+                    <span style="background-color: lime;"></span> &lt; 0.6 &lt;=
+                    <span style="background-color: #B8860B;"></span> &lt; 0.8 &lt;= <span style="background-color: orange;"></span> &lt; 0.95 &lt;=
+                    <span style="background-color: red;"></span> &gt; 0.95
+                    <span style="background-color: magenta;"></span> &gt; 1.0
+                    <span style="background-color: gray;"></span> 無資料
+                </div>
+                <div id="frameCustomContextMenu">
+                    <div class="menu-item" id="frameResetViewOption">重設視圖</div>
+                    <div class="menu-item" id="frameSaveImageOption">另存圖片...</div>
+                    <div class="menu-item" id="frameCopyImageOption">複製圖片</div>
+                </div>
+            </div>
+
+            <div v-if="isPlanVisible" id="planViewerContainer" class="mt-6">
+                <div id="planControls" class="flex flex-wrap gap-4 mb-4 p-4 bg-gray-50 rounded-lg border">
+                    <div class="input-group flex-1 min-w-[250px] m-0 p-2 bg-white">
+                        <label for="storySelector" class="block mb-1 font-bold text-sm">3. 選擇樓層 (Story)</label>
+                        <select id="storySelector" class="w-full p-2 border rounded-md"></select>
+                    </div>
+
+                    <div class="input-group flex-1 min-w-[300px] m-0 p-2 bg-white">
+                        <label class="block mb-1 font-bold text-sm">繪圖選項</label>
+                        <div id="planDrawingOptions" style="display: block; background-color: white; padding: 0; border: none; font-size: 1em;">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="planShowTextToggle" checked class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                <label for="planShowTextToggle" class="ml-2">顯示元件標籤</label>
+                            </div>
+                            <div class="option-group flex items-center">
+                                <label for="planLabelFontSize">標籤字體 (px):</label>
+                                <input type="number" id="planLabelFontSize" value="8" min="1" max="50" class="w-16 p-1 border rounded-md ml-2">
+                            </div>
+                            <div class="flex items-center mt-2">
+                                <input type="checkbox" id="planShowRatioToggle" checked class="h-4 w-4 text-red-600 border-gray-300 rounded">
+                                <label for="planShowRatioToggle" class="ml-2">顯示應力比</label>
+                            </div>
+                            <div class="option-group flex items-center">
+                                <label for="planRatioFontSize">應力比字體 (px):</label>
+                                <input type="number" id="planRatioFontSize" value="8" min="1" max="50" class="w-16 p-1 border rounded-md ml-2">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-end p-2 gap-4">
+                        <button id="planDrawButton" class="plan-button">繪製平面圖</button>
+                        <button id="downloadDxfButton" class="plan-button" disabled>下載 DXF</button> 
+                        <span id="planDrawStatus" class="text-gray-600 italic">(閒置中)</span>
+                    </div>
+                </div>
+                 <div id="planCanvasContainer" style="width: 100%; height: 700px; max-width: none; margin-top: 0;">
+                     <div id="planMessageArea"></div>
+                     <canvas id="planCanvas" width="900" height="700"></canvas>
+                     <div id="planTooltip"></div>
+                </div>
+                <div id="planLegend" class="legend-style mt-4">
+                    <b>應力比顏色圖例:</b>
+                    <span style="background-color: blue;"></span> 0.0 &lt;=
+                    <span style="background-color: cyan;"></span> &lt; 0.4 &lt;=
+                    <span style="background-color: lime;"></span> &lt; 0.6 &lt;=
+                    <span style="background-color: #B8860B;"></span> &lt; 0.8 &lt;= <span style="background-color: orange;"></span> &lt; 0.95 &lt;=
+                    <span style="background-color: red;"></span> &gt; 0.95
+                    <span style="background-color: magenta;"></span> &gt; 1.0
+                    <span style="background-color: gray;"></span> 無資料
+                </div>
+                <div id="planCustomContextMenu">
+                    <div class="menu-item" id="planResetViewOption">重設視圖</div>
+                    <div class="menu-item" id="planSaveImageOption">另存圖片...</div>
+                    <div class="menu-item" id="planCopyImageOption">複製圖片</div>
+                </div>
+            </div>
+
+            <table class="min-w-full divide-y divide-gray-200 bg-white shadow rounded-lg mt-8">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">唯一桿件 ID (Story-ID)</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">樓層</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">類型</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">斷面</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">點 1 (ID)</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">X1, Y1, Z1</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">點 2 (ID)</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">X2, Y2, Z2</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr v-for="member in memberData" :key="member.fullId" class="hover:bg-gray-50">
+                        <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900 font-mono">{{ member.fullId }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{{ member.story }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{{ member.type }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{{ member.section }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-mono">{{ member.p1_id }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-blue-600 text-right font-mono">({{ member.x1.toFixed(3) }}, {{ member.y1.toFixed(3) }}, {{ member.z1.toFixed(3) }})</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-mono">{{ member.p2_id }}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-blue-600 text-right font-mono">({{ member.x2.toFixed(3) }}, {{ member.y2.toFixed(3) }}, {{ member.z2.toFixed(3) }})</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        // (*** 嚴謹修正 ***) 1. 取得 Vue 功能
+        const { createApp, ref, computed, nextTick } = Vue;
+
+        // ===============================================
+        // === (*** 新增 ***) 全域輔助函數 (來自 SRCOL_MAP) ===
+        // ===============================================
+
+        // --- 應力比顏色 (來自 SRCOL_MAP V2) ---
+// --- (*** 風格升級 ***) 應力比顏色 - Apple macOS 風格色票 ---
+        function getStressRatioColor(ratio) {
+            if (isNaN(ratio) || ratio < 0) return '#8E8E93'; // System Gray (無資料)
+            if (ratio > 1.0) return '#AF52DE'; // System Purple (爆掉)
+            if (ratio > 0.95) return '#FF3B30'; // System Red (危險)
+            if (ratio > 0.8) return '#FF9500'; // System Orange (警告)
+            if (ratio > 0.6) return '#FFCC00'; // System Yellow (注意)
+            if (ratio > 0.4) return '#34C759'; // System Green (安全)
+            if (ratio > 0.0) return '#30B0C7'; // System Teal (低應力)
+            return '#007AFF'; // System Blue (極低應力/預設)
+        }
+
+        // --- 解析 .MAP 檔案 (來自 SRCOL_MAP V6.14) ---
+        function parseMapFile(content) {
+            const stressRatios = {}; 
+            const lines = content.split(/\r?\n/);
+            let inBeamMap = false;
+            let inColumnMap = false;
+            let currentBeamIds = [];
+            let currentColumnIds = [];
+            let currentColumnFloor = null;
+            
+            const beamHeaderRegex = /^\s*BEAM\s+([\d\s]+)/;
+            const columnHeaderRegex = /^\s*COLUMN\s+([\w\s\-]+)/; 
+            const knownTypes = new Set(['STEEL', 'R.C.', '(STEEL)', '(R.C.)']);
+
+            for (let line of lines) {
+                line = line.trim();
+                
+                if (line.includes('MAP OF CONTROLLING BEAM INTERACTION STRESS RATIOS')) {
+                    inBeamMap = true; inColumnMap = false; continue;
+                }
+                if (line.includes('MAP OF CONTROLLING COLUMN INTERACTION STRESS RATIOS')) {
+                    inColumnMap = true; inBeamMap = false; continue;
+                }
+
+                if (inBeamMap) {
+                    const headerMatch = line.match(beamHeaderRegex);
+                    if (headerMatch) { currentBeamIds = headerMatch[1].trim().split(/\s+/); continue; }
+                    if (currentBeamIds.length === 0 || !line || line.startsWith('LEVEL') || line.startsWith('FILE') || line.startsWith('FRAME') || line.startsWith('CNS') || line.startsWith('ORDINARY')) continue;
+                    
+                    const parts = line.split(/\s+/); const floor = parts[0];
+                    if (floor && parts.length > 1) {
+                        if (!stressRatios[floor]) stressRatios[floor] = {};
+                        const ratios = parts.slice(1);
+                        for (let i = 0; i < ratios.length; i++) {
+                            if (i < currentBeamIds.length) {
+                                const beamNum = currentBeamIds[i]; const beamLabel = 'B' + beamNum;
+                                let ratioVal = parseFloat(ratios[i]); if (isNaN(ratioVal)) ratioVal = 0.0;
+                                stressRatios[floor][beamLabel] = ratioVal;
+                            }
+                        }
+                    }
+                } else if (inColumnMap) {
+                    const headerMatch = line.match(columnHeaderRegex);
+                    if (headerMatch) { 
+                        currentColumnIds = headerMatch[1].trim().split(/\s+/); 
+                        continue; 
+                    }
+                    
+                    if (currentColumnIds.length === 0 || !line || line.startsWith('LEVEL') || line.startsWith('FILE') || line.startsWith('FRAME') || line.startsWith('CNS')) continue;
+
+                    const parts = line.split(/\s+/);
+                    if (parts.length < 2) continue;
+
+                    let floor, type, ratioStartIndex;
+                    
+                    if (knownTypes.has(parts[0])) {
+                        if (!currentColumnFloor) continue; 
+                        floor = currentColumnFloor;
+                        type = parts[0];
+                        ratioStartIndex = 1;
+                    } else {
+                        floor = parts[0];
+                        currentColumnFloor = floor; 
+                        type = parts[1];
+                        ratioStartIndex = 2;
+                        if (!knownTypes.has(type)) continue; 
+                    }
+
+                    if (floor && parts.length > ratioStartIndex) {
+                        if (!stressRatios[floor]) stressRatios[floor] = {};
+                        const ratios = parts.slice(ratioStartIndex);
+                        
+                        for (let i = 0; i < ratios.length; i++) {
+                            if (i < currentColumnIds.length) {
+                                const colLabel = currentColumnIds[i]; 
+                                let ratioVal = parseFloat(ratios[i]); 
+                                if (isNaN(ratioVal)) ratioVal = 0.0;
+                                
+                                const existingRatio = stressRatios[floor][colLabel] || 0.0;
+                                stressRatios[floor][colLabel] = Math.max(existingRatio, ratioVal);
+                            }
+                        }
+                    }
+                }
+            }
+            console.log("[MAP Parse V6.14] 解析完成 (含梁與柱-含連字號)，共 " + Object.keys(stressRatios).length + " 個樓層。");
+            return stressRatios;
+        }
+
+        // ===============================================
+        // === 核心解析函數 (來自 模型.html, 結構不變) ===
+        // ===============================================
+        
+        function getBlock(content, startMarker) {
+            const startIndex = content.indexOf(startMarker);
+            if (startIndex === -1) return null;
+            const contentFromStart = content.substring(startIndex);
+            const nextDollarIndex = contentFromStart.search(/[\r\n]\s*\$/);
+            const endIndex = nextDollarIndex === -1 ? contentFromStart.length : nextDollarIndex;
+            return contentFromStart.substring(0, endIndex);
+        }
+
+        function parseGrids(fileContent) {
+            const grids = { X: [], Y: [] }; const lines = fileContent.split(/\r?\n/);
+            let currentSection = null; let inGridSection = false;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('$')) {
+                    if (inGridSection) break; 
+                    const sectionNameMatch = line.match(/^\$\s*([A-Z\s]+)/);
+                    if (sectionNameMatch) {
+                        currentSection = sectionNameMatch[1].trim();
+                        if (currentSection === 'GRIDS') inGridSection = true;
+                    }
+                    continue;
+                }
+                if (inGridSection) {
+                    if (line === "" || line.startsWith('TABLE:') || line.startsWith(';')) continue;
+                    if (line.toUpperCase().startsWith('GRID')) {
+                        const labelMatch = line.match(/LABEL\s+"([^"]+)"/);
+                        const dirMatch = line.match(/DIR\s+"([^"]+)"/);
+                        const coordMatch = line.match(/COORD\s+([\d\.-]+)/);
+                        if (labelMatch && dirMatch && coordMatch) {
+                            const label = labelMatch[1]; const dir = dirMatch[1]; const coord = parseFloat(coordMatch[1]);
+                            if (dir === 'X') grids.X.push({ label, coord });
+                            else if (dir === 'Y') grids.Y.push({ label, coord });
+                        }
+                    }
+                }
+            }
+            grids.X.sort((a, b) => a.coord - b.coord); grids.Y.sort((a, b) => a.coord - b.coord);
+            return grids;
+        }
+
+        function parseAndCalculateStories(fileContent) {
+            const storyBlock = getBlock(fileContent, '$ STORIES - IN SEQUENCE FROM TOP');
+            if (!storyBlock) { throw new Error('在檔案中找不到 "$ STORIES - IN SEQUENCE FROM TOP" 標記。'); }
+            const storyRegex = /STORY\s+"([^"]+)"\s+(HEIGHT|ELEV)\s+(-?[\d\.]+)/g;
+            const parsedStories = []; let match;
+            while ((match = storyRegex.exec(storyBlock)) !== null) { parsedStories.push({ name: match[1], type: match[2], value: parseFloat(match[3]) }); }
+            if (parsedStories.length === 0) throw new Error('找不到任何 STORY 定義。');
+            const baseStory = parsedStories.find(s => s.type === 'ELEV');
+            if (!baseStory) throw new Error('找不到基準層 (STORY ... ELEV ...)。');
+            const storiesReversed = [...parsedStories].reverse();
+            let calculationResults = []; let currentElevation = baseStory.value;
+            const baseIndex = storiesReversed.findIndex(s => s.type === 'ELEV');
+            calculationResults.push({ name: baseStory.name, typeInfo: `ELEV ${baseStory.value}`, calculation: '(基準高程)', elevation: currentElevation, height: 0 });
+            for (let i = baseIndex + 1; i < storiesReversed.length; i++) {
+                const story = storiesReversed[i];
+                if (story.type === 'HEIGHT') {
+                    const prevElevation = currentElevation;
+                    const newElevation = parseFloat((prevElevation + story.value).toFixed(5)); 
+                    calculationResults.push({ 
+                        name: story.name, typeInfo: `HEIGHT ${story.value}`, calculation: `${prevElevation.toFixed(3)} + ${story.value}`, 
+                        elevation: newElevation, height: story.value
+                    });
+                    currentElevation = newElevation;
+                }
+            }
+            const sequencedStories = calculationResults.slice().sort((a, b) => a.elevation - b.elevation);
+            return { results: calculationResults.reverse(), sequenced: sequencedStories };
+        }
+
+        function getElevationOfStoryBelow(currentStoryName, sequencedStories) {
+            const currentIndex = sequencedStories.findIndex(s => s.name === currentStoryName);
+            if (currentIndex <= 0) return null;
+            return sequencedStories[currentIndex - 1].elevation;
+        }
+
+        function parseMemberCoordinates(fileContent, storyElevationMap, sequencedStories) {
+            const lineAssignsList = parseLineAssignsList(fileContent); 
+            const lineConnectivityMap = parseLineConnectivity(fileContent);
+            const pointCoordMap = parsePointCoordinates(fileContent);
+            const finalMemberData = []; const EPSILON = 0.001;
+            for (const assignData of lineAssignsList) {
+                try {
+                    const lineID = assignData.id; const story = assignData.story;
+                    const memberType = getMemberType(lineID);
+                    if (!storyElevationMap.has(story) || !lineConnectivityMap.has(lineID)) continue;
+                    const storyElev = storyElevationMap.get(story);
+                    const conn = lineConnectivityMap.get(lineID);
+                    if (!pointCoordMap.has(conn.p1) || !pointCoordMap.has(conn.p2)) continue;
+                    const p1 = pointCoordMap.get(conn.p1); const p2 = pointCoordMap.get(conn.p2);
+                    let z1 = parseFloat((storyElev - p1.zRel).toFixed(5));
+                    let z2 = parseFloat((storyElev - p2.zRel).toFixed(5));
+                    const fullId = `${story}-${lineID}`;
+                    if (memberType === '柱 (Column)') {
+                        const storyBelowElev = getElevationOfStoryBelow(story, sequencedStories);
+                        if (storyBelowElev !== null) {
+                            if (Math.abs(z1 - z2) < EPSILON) {
+                                if (Math.abs(p1.zRel) < EPSILON) { z1 = storyElev; z2 = storyBelowElev; } 
+                                else if (Math.abs(p2.zRel) < EPSILON) { z1 = storyBelowElev; z2 = storyElev; } 
+                                else { if (parseInt(conn.p1) < parseInt(conn.p2)) { z1 = storyBelowElev; z2 = storyElev; } else { z1 = storyElev; z2 = storyBelowElev; } }
+                            }
+                        }
+                    } else if (memberType === '斜撐 (Brace)') {
+                        const storyBelowElev = getElevationOfStoryBelow(story, sequencedStories);
+                        if (storyBelowElev !== null) { if (Math.abs(p1.zRel) < EPSILON) { z1 = storyBelowElev; } }
+                    } else if (memberType === '梁 (Beam)') {
+                        const storyBelowElev = getElevationOfStoryBelow(story, sequencedStories);
+                        if (storyBelowElev !== null && conn.endFlag === '1') { if (Math.abs(p1.zRel) < EPSILON) { z1 = storyBelowElev; } }
+                    }
+                    finalMemberData.push({
+                        fullId: fullId, id: lineID, story: story, type: memberType, section: assignData.section,
+                        p1_id: conn.p1, p2_id: conn.p2,
+                        x1: p1.x, y1: p1.y, z1: z1,
+                        x2: p2.x, y2: p2.y, z2: z2
+                    });
+                } catch (e) { console.error(`處理桿件 ${assignData ? assignData.id : 'Unknown'} 時發生錯誤:`, e.message); }
+            }
+            if (finalMemberData.length === 0 && lineAssignsList.length > 0) {
+                console.warn('已找到桿件，但無法解析其座標或連接點。');
+            }
+            return finalMemberData;
+        }
+
+        function parseLineAssignsList(fileContent) {
+            const block = getBlock(fileContent, '$ LINE ASSIGNS');
+            if (!block) return []; const list = [];
+            const regex = /LINEASSIGN\s+"([^"]+)"\s+"([^"]+)"\s+SECTION\s+"([^"]+)"/g;
+            let match;
+            while ((match = regex.exec(block)) !== null) { 
+                list.push({ id: match[1], story: match[2], section: match[3] }); 
+            }
+            return list;
+        }
+        
+        function parseLineConnectivity(fileContent) {
+            const block = getBlock(fileContent, '$ LINE CONNECTIVITIES');
+            if (!block) return new Map(); const map = new Map();
+            const regex = /LINE\s+"([^"]+)"\s+[^\s]+\s+"([^"]+)"\s+"([^"]+)"\s*(\d*)/g;
+            let match;
+            while ((match = regex.exec(block)) !== null) { 
+                map.set(match[1], { p1: match[2], p2: match[3], endFlag: match[4] || '0' }); 
+            }
+            return map;
+        }
+
+        function parsePointCoordinates(fileContent) {
+            const block = getBlock(fileContent, '$ POINT COORDINATES');
+            if (!block) return new Map(); const map = new Map();
+            const pointEntriesRegex = /POINT\s+"([^"]+)"([\s\S]*?)(?=POINT\s+"|$)/g;
+            let entryMatch;
+            while ((entryMatch = pointEntriesRegex.exec(block)) !== null) {
+                const pointID = entryMatch[1]; const coordText = entryMatch[2];
+                const coordRegex = /([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/g;
+                const coords = []; let coordMatch;
+                while ((coordMatch = coordRegex.exec(coordText)) !== null) { coords.push(parseFloat(coordMatch[1])); }
+                if (coords.length >= 2) {
+                    const x = coords[0]; const y = coords[1];
+                    const zRel = (coords.length >= 3) ? coords[2] : 0.0;
+                    map.set(pointID, { x, y, zRel });
+                }
+            }
+            return map;
+        }
+
+        function getMemberType(id) {
+            if (id.startsWith('D')) return '斜撐 (Brace)';
+            if (id.startsWith('C')) return '柱 (Column)';
+            if (id.startsWith('B')) return '梁 (Beam)';
+            return '未知 (Unknown)';
+        }
+
+        function normalizeString(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/[\s\uFEFF\xA0]/g, '').toUpperCase();
+        }
+        function parseMappingFile(content) { 
+            console.log("[Mapping Parse] 開始解析 尺寸標示.TXT...");
+            const mapping = {}; const lines = content.split(/\r?\n/);
+            for (let i = 1; i < lines.length; i++) { 
+                const line = lines[i].trim(); if (line === "" || line.startsWith('#') || line.startsWith('//') || line.startsWith('[source')) continue; 
+                const parts = line.split(/\s+/); 
+                if (parts.length >= 2) { 
+                    const drawingLabel = parts[0].trim(); 
+                    const etabsSectionName = normalizeString(parts[1]); 
+                    if (drawingLabel && etabsSectionName) mapping[etabsSectionName] = drawingLabel; 
+                }
+            }
+            console.log(`[Mapping Parse] 解析完成， ${Object.keys(mapping).length} 個對應。`); return mapping;
+         }
+        function readFileAsText(file, encoding = 'UTF-8') { 
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(error);
+                console.log(`[ReadFile] 正在以 ${encoding} 編碼讀取 ${file.name}`);
+                reader.readAsText(file, encoding);
+            });
+         }
+
+        // (*** 嚴謹修正 ***) 2. 將 Class 定義放在 Vue App 之前
+		// ===============================================
+        // === (*** ID 重構 ***) 2D 構架 (Frame) 檢視器類別 ===
+        // === (*** 已整合 SRCOL_MAP 應力比功能 ***) ===
+        // ===============================================
+        class FrameViewer2D {
+            constructor(domIDs) {
+                // --- 0. 儲存 DOM 元素 ---
+                this.canvasContainer = document.getElementById(domIDs.container);
+                this.canvas = document.getElementById(domIDs.canvas);
+                this.ctx = this.canvas.getContext('2d');
+                this.frameSelector = document.getElementById(domIDs.selector);
+                this.drawStatus = document.getElementById(domIDs.status);
+                this.messageArea = document.getElementById(domIDs.messageArea);
+                this.tooltip = document.getElementById(domIDs.tooltip);
+                this.customContextMenu = document.getElementById(domIDs.customContextMenu);
+                this.resetViewOption = document.getElementById(domIDs.resetViewOption);
+                this.saveImageOption = document.getElementById(domIDs.saveImageOption);
+                this.copyImageOption = document.getElementById(domIDs.copyImageOption);
+                this.dxfButton = document.getElementById(domIDs.dxfButton);
+                
+                // --- (*** 整合 ***) 繪圖選項 DOM ---
+                this.showTextToggle = document.getElementById(domIDs.showTextToggle);
+                this.labelFontSizeInput = document.getElementById(domIDs.labelFontSizeInput);
+                this.showRatioToggle = document.getElementById(domIDs.showRatioToggle); // (*** 新增 ***)
+                this.ratioFontSizeInput = document.getElementById(domIDs.ratioFontSizeInput); // (*** 新增 ***)
+
+                // --- (*** 整合 ***) 資料儲存 ---
+                this.beamMapping = {};
+                this.mapStressData = {}; // (*** 新增 ***)
+                
+                // (*** 嚴謹修正 ***) storyData 將儲存 Vue 傳入的 top-to-bottom 列表
+                this.fullMemberData = []; this.gridData = { X: [], Y: [] }; this.storyData = [];
+                this.pointCoords = new Map(); this.currentFrameData = null; this.scale = 1.0;
+                this.offsetX = 0; this.offsetY = 0; this.isDragging = false; this.lastMouseX = 0;
+                this.lastMouseY = 0; this.hoveredElement = null; this.lastHoveredElement = null;
+                
+                this.bindEvents();
+                setTimeout(() => this.resizeCanvas(), 0);
+            }
+
+            // (*** 修改 ***) 接收所有資料
+            setData(fullMemberData, gridData, storyData, pointCoords, beamMapping, mapStressData) {
+                this.fullMemberData = fullMemberData; 
+                this.gridData = gridData;
+                this.storyData = storyData; // (*** 儲存 Vue 傳入的 storyResults ***)
+                this.pointCoords = pointCoords;
+                this.beamMapping = beamMapping || {};
+                this.mapStressData = mapStressData || {}; // (*** 新增 ***)
+                
+                this.populateFrameSelector(this.gridData);
+                if (this.frameSelector.options.length > 1) { 
+                    this.frameSelector.selectedIndex = 1; 
+                    this.triggerDraw();
+                }
+            }
+            
+            // (*** 新增 ***) 更新應力比
+            updateStressData(newStressData) {
+                this.mapStressData = newStressData || {};
+                this.triggerDraw(); // 重新繪製以套用顏色
+            }
+            
+            updateMapping(newMapping) {
+                this.beamMapping = newMapping || {};
+                this.triggerDraw(); 
+            }
+
+            bindEvents() {
+                // (*** 修改 ***) 檢查所有 DOM 元素
+                const domElements = {
+                    container: this.canvasContainer, canvas: this.canvas, selector: this.frameSelector,
+                    status: this.drawStatus, messageArea: this.messageArea, tooltip: this.tooltip,
+                    showTextToggle: this.showTextToggle, labelFontSizeInput: this.labelFontSizeInput,
+                    showRatioToggle: this.showRatioToggle, ratioFontSizeInput: this.ratioFontSizeInput, // (*** 新增 ***)
+                    customContextMenu: this.customContextMenu, resetViewOption: this.resetViewOption,
+                    saveImageOption: this.saveImageOption, copyImageOption: this.copyImageOption,
+                    dxfButton: this.dxfButton
+                };
+                let missing = false;
+                for (const key in domElements) {
+                    if (!domElements[key]) {
+                        if (key === 'dxfButton') {
+                            console.warn(`[FrameViewer2D] 可選的 ${key} 元素未找到。`);
+                        } else {
+                            console.error(`[FrameViewer2D] DOM 綁定失敗: 找不到 ID 為 ${key} 的元素。`);
+                            missing = true;
+                        }
+                    }
+                }
+                if (missing) {
+                    if (this.messageArea) this.showError("2D 構架圖 DOM 綁定失敗。");
+                    return; 
+                }
+                
+                // (*** 修改 ***) 綁定所有繪圖選項
+this.frameSelector.addEventListener('change', this.triggerDraw.bind(this));
+                this.showTextToggle.addEventListener('change', this.redrawCurrentView.bind(this));
+                this.labelFontSizeInput.addEventListener('input', this.redrawCurrentView.bind(this));
+                this.showRatioToggle.addEventListener('change', this.redrawCurrentView.bind(this));
+                this.ratioFontSizeInput.addEventListener('input', this.redrawCurrentView.bind(this));
+                
+                this.canvasContainer.addEventListener('wheel', this.handleWheel.bind(this));
+                this.canvasContainer.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.canvasContainer.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.canvasContainer.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                this.canvasContainer.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
+                this.canvasContainer.addEventListener('contextmenu', this.handleContextMenu.bind(this));
+                
+                this.resetViewOption.addEventListener('click', this.resetView.bind(this));
+                this.saveImageOption.addEventListener('click', this.saveImage.bind(this));
+                this.copyImageOption.addEventListener('click', this.copyImage.bind(this));
+                
+                if (this.dxfButton) {
+                    this.dxfButton.addEventListener('click', this.downloadDxf.bind(this));
+                }
+                
+                // (*** 修正 ***) 鍵盤事件只針對此容器生效
+                // 設定 tabindex 讓 div 可以接收 focus
+                this.canvasContainer.setAttribute('tabindex', '0');
+                // 點擊時自動聚焦 (雖然 tabindex 0 預設會聚焦，但這樣保險)
+                this.canvasContainer.addEventListener('click', () => this.canvasContainer.focus());
+                // 監聽容器的 keydown，而非 window
+                this.canvasContainer.addEventListener('keydown', this.handleKeyDown.bind(this));
+
+                window.addEventListener('click', (event) => {
+                    if (this.customContextMenu && !this.customContextMenu.contains(event.target)) this.hideContextMenu();
+                });
+                if (window.ResizeObserver) {
+                    new ResizeObserver(this.resizeCanvas.bind(this)).observe(this.canvasContainer);
+                } else {
+                    window.addEventListener('resize', this.resizeCanvas.bind(this));
+                }
+            }
+
+            resizeCanvas() {
+                if (!this.canvasContainer || !this.canvas) return;
+                this.canvas.width = this.canvasContainer.clientWidth;
+                this.canvas.height = this.canvasContainer.clientHeight;
+                this.redrawCurrentView();
+            }
+
+            populateFrameSelector(gridData) {
+                const gridLines = [];
+                if (gridData.X) gridData.X.forEach(g => gridLines.push({ id: `X:${g.label}`, text: `X: ${g.label}` }));
+                if (gridData.Y) gridData.Y.forEach(g => gridLines.push({ id: `Y:${g.label}`, text: `Y: ${g.label}` }));
+                gridLines.sort((a,b) => a.text.localeCompare(b.text, undefined, {numeric: true}));
+                this.frameSelector.innerHTML = '';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = ""; defaultOption.textContent = "請選擇..."; defaultOption.disabled = true; defaultOption.selected = true;
+                this.frameSelector.appendChild(defaultOption);
+                gridLines.forEach(g => {
+                    const opt = document.createElement('option'); opt.value = g.id; opt.textContent = g.text; 
+                    this.frameSelector.appendChild(opt);
+                });
+            }
+
+            triggerDraw() {
+                this.clearCanvas(); this.clearMessage();
+                if (this.dxfButton) this.dxfButton.disabled = true;
+                
+                const targetGridID = this.frameSelector.value;
+                if (!targetGridID) { this.showError("請選擇一條構架線。"); return; }
+                this.showMessage(`正在為 ${targetGridID} 建立構架幾何...`, true);
+                this.drawStatus.textContent = '(繪製中...)'; 
+                setTimeout(() => {
+                    try {
+                        this.currentFrameData = this.getFrameGeometricData(targetGridID);
+                        if (this.currentFrameData.elements.length === 0) {
+                            this.showError("此構架線上找不到任何梁、柱或斜撐。"); 
+                            this.drawStatus.textContent = '(錯誤!)'; this.currentFrameData = null; return;
+                        }
+                        this.calculateInitialTransform(this.currentFrameData.storyElevations, this.currentFrameData.frameGridLines);
+                        this.drawFrame_Geometry(this.currentFrameData);
+                        this.showMessage(`構架 "${targetGridID}" 幾何繪製完成。`);
+                        this.drawStatus.textContent = '(完成)'; 
+                        if (this.dxfButton) this.dxfButton.disabled = false;
+                    } catch (error) {
+                        console.error("2D 構架繪製失敗:", error);
+                        this.showError(`2D 構架繪製失敗: ${error.message}.`);
+                        this.drawStatus.textContent = '(錯誤!)';
+                        this.currentFrameData = null;
+                    }
+                }, 10);
+            }
+
+            // (*** 修改 ***) 取得構架資料 (增加 shortId 和 ratio)
+            getFrameGeometricData(targetGridID) {
+                const [axis, label] = targetGridID.split(':');
+                const selectedGridLine = (axis === 'X' ? this.gridData.X : this.gridData.Y).find(g => g.label === label);
+                if (!selectedGridLine) { throw new Error(`找不到網格線 ${targetGridID}`); }
+                const gridCoord = selectedGridLine.coord; const gridTolerance = 0.001; 
+                const orthogonalGridLines = (axis === 'X' ? this.gridData.Y : this.gridData.X);
+                const elementsOnFrame = [];
+                for (const member of this.fullMemberData) {
+                    const checkCoord1 = (axis === 'X' ? member.x1 : member.y1);
+                    const checkCoord2 = (axis === 'X' ? member.x2 : member.y2);
+                    if (Math.abs(checkCoord1 - gridCoord) < gridTolerance && Math.abs(checkCoord2 - gridCoord) < gridTolerance) {
+                        const h1 = (axis === 'X' ? member.y1 : member.x1); const h2 = (axis === 'X' ? member.y2 : member.x2);
+                        const memberType = this.getMemberTypeEN(member.id);
+                        let drawingLabel = member.fullId; 
+                        let hasMapping = false; 
+                        
+// (*** 邏輯修正：取得 shortId ***)
+                    const shortId = member.id;
+
+                    // (*** 嚴謹修正：將 尺寸標示.TXT 邏輯應用於所有桿件類型 ***)
+                    const etabsSection = normalizeString(member.section);
+                    const mappedLabel = this.beamMapping[etabsSection];
+                    drawingLabel = mappedLabel || shortId; // 優先使用 .TXT 標示，否則使用 shortId (B1, C1, D1)
+                    hasMapping = (mappedLabel !== undefined); 
+                    // (*** 修正結束 ***)
+
+                    // 取得應力比 (適用於所有類型)
+                    const ratio = this.mapStressData[member.story] ? this.mapStressData[member.story][shortId] : NaN;
+                    
+                    // 將 push 移到 if/else 之外，確保所有類型都被加入
+                    elementsOnFrame.push({
+                            label: member.fullId, // 完整 ID (Story-ID)
+                            shortId: shortId,      // 短 ID (B1, C1) (*** 新增 ***)
+                            drawingLabel: drawingLabel, // 繪圖用標籤
+                            hasMapping: hasMapping,
+                            type: memberType, 
+                            story: member.story,
+                            h1: h1, z1: member.z1, h2: h2, z2: member.z2,
+                            ratio: ratio // (*** 新增 ***)
+                        });
+                    }
+                }
+                const storyElevationsMap = {};
+                // (*** 嚴謹修正 ***) 使用 this.storyData (來自 Vue 的 top-to-bottom list)
+                this.storyData.forEach(s => { storyElevationsMap[s.name] = s.elevation; });
+                if (!storyElevationsMap["BASE"]) {
+                     const baseElev = this.storyData.reduce((min, s) => Math.min(min, s.elevation - (s.height || 0)), Infinity);
+                     storyElevationsMap["BASE"] = (baseElev > 0 ? 0 : (baseElev === Infinity ? 0 : baseElev));
+                }
+                return { 
+                    elements: elementsOnFrame, storyElevations: storyElevationsMap, 
+                    frameGridLines: orthogonalGridLines, axis: axis 
+                };
+            }
+
+            getMemberTypeEN(id) {
+                if (id.startsWith('D')) return 'BRACE'; if (id.startsWith('C')) return 'COLUMN';
+                if (id.startsWith('B')) return 'BEAM'; return 'UNKNOWN';
+            }
+
+            calculateInitialTransform(storyElevations, frameGridLines) {
+                let minH = Infinity, maxH = -Infinity, minV = Infinity, maxV = -Infinity;
+                frameGridLines.forEach(g => { minH = Math.min(minH, g.coord); maxH = Math.max(maxH, g.coord); });
+                Object.values(storyElevations).forEach(z => { minV = Math.min(minV, z); maxV = Math.max(maxV, z); });
+                if (minH === Infinity) { minH = -10; maxH = 10; } if (minV === Infinity) { minV = 0; maxV = 100; }
+                if (minH === maxH) { minH -= 1; maxH += 1; } if (minV === maxV) { minV -= 1; maxV += 1; }
+                const padding = 50; const canvasWidth = this.canvas.width - 2 * padding; const canvasHeight = this.canvas.height - 2 * padding;
+                const dataWidth = maxH - minH; const dataHeight = maxV - minV;
+                const scaleX = dataWidth === 0 ? 1 : canvasWidth / dataWidth; const scaleY = dataHeight === 0 ? 1 : canvasHeight / dataHeight;
+                this.scale = Math.min(scaleX, scaleY) * 0.95;
+                this.offsetX = padding + (canvasWidth - dataWidth * this.scale) / 2 - minH * this.scale;
+                this.offsetY = padding + (canvasHeight - dataHeight * this.scale) / 2 + maxV * this.scale;
+            }
+
+            drawViewInfo(infoText) {
+                this.ctx.save(); this.ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                this.ctx.font = 'bold 16px Arial'; this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; 
+                this.ctx.textAlign = 'right'; this.ctx.textBaseline = 'top';
+                this.ctx.fillText(infoText, this.canvas.width - 10, 10);
+                this.ctx.restore(); 
+            }
+
+            // (*** 重大修改 ***) 整合應力比繪圖
+           // (*** 風格升級 ***) macOS 風格構架繪圖
+            drawFrame_Geometry(frameData) {
+                if (!frameData) return;
+                const { elements, storyElevations, frameGridLines, axis } = frameData;
+                
+                const transformX = (worldH) => worldH * this.scale + this.offsetX;
+                const transformY = (worldV) => this.offsetY - worldV * this.scale;
+                this.clearCanvas(); const ctx = this.ctx;
+                
+                const showText = this.showTextToggle.checked;
+                const showRatio = this.showRatioToggle.checked;
+
+                // 1. 繪製背景網格 (保持極簡，但更淡雅)
+                ctx.lineWidth = 1;
+                ctx.lineCap = 'butt'; // 網格保持平角
+                ctx.shadowBlur = 0; // 網格無陰影
+
+                // 樓層線
+                ctx.strokeStyle = '#E5E5EA'; // System Gray 6 (極淡)
+                ctx.fillStyle = '#8E8E93';   // System Gray
+                ctx.font = '11px "SF Pro Text", "Helvetica Neue", Arial, sans-serif'; // 使用系統字體
+                
+                // ... (計算網格範圍邏輯保持不變) ...
+                let minH_grid = Infinity, maxH_grid = -Infinity;
+                frameGridLines.forEach(g => { minH_grid = Math.min(minH_grid, g.coord); maxH_grid = Math.max(maxH_grid, g.coord); });
+                if (minH_grid === Infinity) { minH_grid = -10; maxH_grid = 10; }
+                if (minH_grid === maxH_grid) { minH_grid -= 1; maxH_grid += 1; } 
+                const bufferH_grid = (maxH_grid - minH_grid) * 0.1 + 1; 
+                const orderedStories = [...this.storyData].sort((a,b) => b.elevation - a.elevation);
+                if (storyElevations["BASE"] !== undefined && !orderedStories.find(s => s.name === "BASE")) {
+                    orderedStories.push({ name: "BASE", elevation: storyElevations["BASE"], height: 0 });
+                }
+
+                orderedStories.forEach(story => {
+                    const z = story.elevation; const ty = transformY(z);
+                    if (ty > 30 && ty < this.canvas.height) { 
+                        const tx1 = transformX(minH_grid - bufferH_grid); 
+                        const tx2 = transformX(maxH_grid + bufferH_grid);
+                        ctx.beginPath(); ctx.moveTo(tx1, ty); ctx.lineTo(tx2, ty); ctx.stroke();
+                        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(story.name, 10, ty);
+                    }
+                });
+
+                // 垂直網格線
+                const z_top_grid = orderedStories.length > 0 ? orderedStories[0].elevation : 10;
+                const z_bot_grid = orderedStories.length > 0 ? orderedStories[orderedStories.length - 1].elevation : 0;
+                const bufferV_grid = (z_top_grid - z_bot_grid) * 0.1 + 1;
+                const ty_top_grid = transformY(z_top_grid + bufferV_grid);
+                const ty_bot_grid = transformY(z_bot_grid - bufferV_grid);
+                
+                frameGridLines.forEach(g => {
+                    const tx = transformX(g.coord); 
+                    if (tx > 30 && tx < this.canvas.width) { 
+                        ctx.beginPath(); ctx.moveTo(tx, ty_top_grid); ctx.lineTo(tx, ty_bot_grid); ctx.stroke();
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(g.label, tx, 10);
+                    }
+                });
+
+                // 2. 設定構件繪圖樣式 (macOS 風格核心)
+                const baseLabelSize = parseFloat(this.labelFontSizeInput.value) || 8;
+                const baseRatioSize = parseFloat(this.ratioFontSizeInput.value) || 8;
+                let dynamicLabelSize = Math.max(10, Math.min(18, baseLabelSize * Math.sqrt(this.scale)));
+                let dynamicRatioSize = Math.max(10, Math.min(18, baseRatioSize * Math.sqrt(this.scale)));
+
+                // 開啟柔和陰影，營造「懸浮感」
+                ctx.shadowColor = "rgba(0, 0, 0, 0.15)"; // 淡淡的黑影
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
+                
+                // 設定圓角線條
+                ctx.lineCap = 'round'; 
+                ctx.lineJoin = 'round';
+
+                elements.forEach(el => {
+                    const tx1 = transformX(el.h1); const ty1 = transformY(el.z1);
+                    const tx2 = transformX(el.h2); const ty2 = transformY(el.z2);
+                    
+                    const color = getStressRatioColor(el.ratio);
+                    let defaultColor = '#C7C7CC'; // System Gray 4
+                    
+                    // 線條加粗，更有質感
+                    if (el.type === 'BEAM') { 
+                        ctx.lineWidth = 5; // 梁加粗
+                        defaultColor = el.hasMapping ? '#007AFF' : '#8E8E93'; // System Blue / Gray
+                        ctx.setLineDash([]); 
+                    } else if (el.type === 'COLUMN') { 
+                        ctx.lineWidth = 6; // 柱子最粗
+                        defaultColor = '#8E8E93'; 
+                        ctx.setLineDash([]); 
+                    } else if (el.type === 'BRACE') { 
+                        ctx.lineWidth = 3; 
+                        defaultColor = '#34C759'; // System Green
+                        ctx.setLineDash([8, 6]); // 虛線間隔加大
+                    } else { 
+                        ctx.lineWidth = 2; ctx.setLineDash([4, 4]); 
+                    }
+                    
+                    ctx.strokeStyle = (color !== '#8E8E93') ? color : defaultColor; // 注意這裡 default 比較要配合新色票
+                    
+                    ctx.beginPath(); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke();
+                    
+                    // 繪製文字
+                    ctx.setLineDash([]);
+                    // 暫時關閉陰影繪製文字，保持清晰
+                    ctx.shadowColor = "transparent"; 
+                    
+                    const midX = (tx1 + tx2) / 2; const midY = (ty1 + ty2) / 2;
+                    
+                    if (showText) { 
+                        ctx.fillStyle = (el.type === 'BEAM' && el.hasMapping) ? '#FF3B30' : '#1C1C1E'; // System Red / Label Color
+                        ctx.font = `600 ${dynamicLabelSize}px "SF Pro Text", Arial`; // Semibold
+                        
+                        const labelToDraw = el.drawingLabel;
+                        if (el.type === 'COLUMN') {
+                            ctx.textAlign = 'start'; 
+                            ctx.fillText(labelToDraw, midX + 8, midY - (showRatio && !isNaN(el.ratio) ? (dynamicLabelSize * 0.6) : 0) ); 
+                        } else {
+                            ctx.textAlign = 'center'; 
+                            // 文字底部加一個半透明白底，避免和線條重疊看不清
+                            // (選擇性功能，這裡保持簡潔直接繪製)
+                            ctx.fillText(labelToDraw, midX, midY - dynamicLabelSize * 1.0); 
+                        }
+                    }
+                    
+                    if (showRatio && !isNaN(el.ratio)) {
+                        ctx.fillStyle = (color !== '#8E8E93') ? color : '#1C1C1E';
+                        ctx.font = `500 ${dynamicRatioSize}px "SF Pro Text", Arial`; // Medium
+                        const ratioText = el.ratio.toFixed(el.type === 'BEAM' ? 3 : 2);
+                        
+                        if (el.type === 'COLUMN') {
+                            ctx.textAlign = 'start';
+                            ctx.fillText(ratioText, midX + 8, midY + (showText ? (dynamicRatioSize * 0.6) : 0));
+                        } else {
+                            ctx.textAlign = 'center';
+                            ctx.fillText(ratioText, midX, midY + (showText ? (dynamicRatioSize * 1.0) : 0));
+                        }
+                    }
+                    // 恢復陰影給下一個構件
+                    ctx.shadowColor = "rgba(0, 0, 0, 0.15)"; 
+                });
+                
+                // 高亮效果 (發光)
+                if (this.hoveredElement) {
+                    const el = this.hoveredElement;
+                    const tx1 = transformX(el.h1); const ty1 = transformY(el.z1);
+                    const tx2 = transformX(el.h2); const ty2 = transformY(el.z2);
+                    
+                    ctx.shadowColor = "#007AFF"; // 藍色發光
+                    ctx.shadowBlur = 15;
+                    ctx.strokeStyle = '#FFFFFF'; 
+                    ctx.lineWidth = 4; 
+                    ctx.lineCap = 'round';
+                    ctx.beginPath(); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke();
+                }
+                
+                if (this.frameSelector.options.length > 0 && this.frameSelector.value) {
+                    const targetFrameText = this.frameSelector.options[this.frameSelector.selectedIndex].text;
+                    this.drawViewInfo(`構架立面圖: ${targetFrameText}`);
+                }
+            }
+
+            redrawCurrentView() {
+                if (this.currentFrameData) {
+                    window.requestAnimationFrame(() => this.drawFrame_Geometry(this.currentFrameData));
+                }
+            }
+
+            distToSegmentSq(px, py, x1, y1, x2, y2) {
+                const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+                if (l2 === 0) return (px - x1) * (px - x1) + (py - y1) * (py - y1);
+                let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                const projX = x1 + t * (x2 - x1); const projY = y1 + t * (y2 - y1);
+                return (px - projX) * (px - projX) + (py - projY) * (py - projY);
+            }
+
+            // (*** 修改 ***) 尋找懸停 (傳回 ratio)
+            findHoveredElement(worldH, worldZ, toleranceSq) {
+                if (!this.currentFrameData) return null;
+                const { elements } = this.currentFrameData;
+                for (const el of elements) {
+                    // (*** 嚴謹修正 ***) 構架的懸停判斷
+                    const h1 = el.h1, h2 = el.h2;
+                    const z1 = el.z1, z2 = el.z2; // (*** 嚴謹修正 ***) el.z1 和 el.z2 已經是絕對座標
+                    
+                    const distSq = this.distToSegmentSq(worldH, worldZ, h1, z1, h2, z2);
+                    if (distSq < toleranceSq) return el; // el 已經包含 ratio
+                }
+                return null;
+            }
+
+            handleWheel(event) {
+                event.preventDefault(); this.tooltip.style.display = 'none'; 
+                this.hoveredElement = null; this.lastHoveredElement = null; 
+                const rect = this.canvas.getBoundingClientRect(); 
+                const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top;
+                const worldXBefore = (mouseX - this.offsetX) / this.scale; 
+                const worldYBefore = (this.offsetY - mouseY) / this.scale;
+                const zoomFactor = 1.1; const delta = event.deltaY < 0 ? zoomFactor : 1 / zoomFactor; 
+                this.scale = this.scale * delta; 
+                this.offsetX = mouseX - worldXBefore * this.scale; 
+                this.offsetY = mouseY + worldYBefore * this.scale;
+                this.redrawCurrentView(); 
+            }
+
+            handleMouseDown(event) { 
+                if(event.button !== 0) return; this.isDragging = true; 
+                this.lastMouseX = event.clientX; this.lastMouseY = event.clientY; 
+                this.canvasContainer.style.cursor = 'grabbing'; this.tooltip.style.display = 'none'; 
+            }
+
+            handleMouseMove(event) {
+                // 取得 Canvas 的邊界，用於計算畫布內的相對座標 (縮放/平移用)
+                const rect = this.canvas.getBoundingClientRect(); 
+                const canvasMouseX = event.clientX - rect.left; 
+                const canvasMouseY = event.clientY - rect.top;
+
+                if (this.isDragging) { 
+                    this.tooltip.style.display = 'none'; 
+                    this.hoveredElement = null; 
+                    this.lastHoveredElement = null; 
+                    const deltaX = event.clientX - this.lastMouseX; 
+                    const deltaY = event.clientY - this.lastMouseY; 
+                    this.offsetX += deltaX; 
+                    this.offsetY += deltaY; 
+                    this.lastMouseX = event.clientX; 
+                    this.lastMouseY = event.clientY; 
+                    this.redrawCurrentView(); 
+                } else {
+                    // 計算世界座標 (用於判斷是否碰到桿件)
+                    const worldH = (canvasMouseX - this.offsetX) / this.scale; 
+                    const worldZ = (this.offsetY - canvasMouseY) / this.scale;
+                    const toleranceSq = (6 / this.scale) * (6 / this.scale); // 稍微增加感應範圍
+                    
+                    this.hoveredElement = this.findHoveredElement(worldH, worldZ, toleranceSq);
+                    
+                    if (this.hoveredElement) {
+                        const el = this.hoveredElement;
+                        const ratioText = isNaN(el.ratio) ? 'N/A' : el.ratio.toFixed(3);
+                        this.tooltip.innerHTML = `<b>${el.drawingLabel}</b> (樓層: ${el.story})<br>類型: ${el.type}<br>應力比: ${ratioText}<br><small>(${el.label})</small>`;
+                        
+                        // (*** 修正 ***) 使用 fixed 定位邏輯
+                        this.tooltip.style.display = 'block';
+                        this.tooltip.style.position = 'fixed'; // 雙重保險
+                        // 加上 15px 偏移量，避免遮住游標
+                        this.tooltip.style.left = (event.clientX + 15) + 'px';
+                        this.tooltip.style.top = (event.clientY + 15) + 'px';
+                    } else { 
+                        this.tooltip.style.display = 'none'; 
+                    }
+                    
+                    if (this.hoveredElement !== this.lastHoveredElement) {
+                        this.lastHoveredElement = this.hoveredElement;
+                        this.redrawCurrentView();
+                    }
+                }
+            }
+
+            handleMouseUp(event) { 
+                if (this.isDragging) { 
+                    this.isDragging = false; this.canvasContainer.style.cursor = 'grab'; 
+                    this.handleMouseMove({ clientX: event.clientX, clientY: event.clientY });
+                } 
+            }
+            handleMouseLeave() { 
+                if (this.isDragging) { this.isDragging = false; this.canvasContainer.style.cursor = 'grab'; } 
+                this.tooltip.style.display = 'none';
+                if (this.hoveredElement !== null) {
+                    this.hoveredElement = null; this.lastHoveredElement = null; this.redrawCurrentView();
+                }
+            }
+            handleKeyDown(event) {
+                if (!this.canvasContainer || this.canvasContainer.offsetParent === null) return;
+                let selector = this.frameSelector;
+                if (!selector || selector.options.length <= 1) return; 
+                let newIndex = selector.selectedIndex; const numOptions = selector.options.length;
+                const hasPlaceholder = selector.options[0].disabled; const startIndex = hasPlaceholder ? 1 : 0;
+                if (newIndex < startIndex) newIndex = startIndex; 
+                if (event.key === 'PageUp' || event.keyCode === 33) { 
+                    event.preventDefault(); 
+                    if (newIndex > startIndex) newIndex--; else newIndex = numOptions - 1;
+                } else if (event.key === 'PageDown' || event.keyCode === 34) { 
+                    event.preventDefault(); 
+                    if (newIndex < numOptions - 1) newIndex++; else newIndex = startIndex;
+                } else return;
+                if (newIndex !== selector.selectedIndex) { 
+                    selector.selectedIndex = newIndex; this.triggerDraw(); 
+                }
+            }
+handleContextMenu(event) {
+                event.preventDefault(); this.hideContextMenu();
+                
+                // --- 修正開始 (考慮頁面滾動量的絕對定位) ---
+                // 將視埠座標 (event.clientX/Y) 加上頁面滾動量 (window.scrollX/Y)
+                const mouseX = event.clientX + window.scrollX;
+                const mouseY = event.clientY + window.scrollY;
+
+                this.customContextMenu.style.top = `${mouseY}px`; 
+                this.customContextMenu.style.left = `${mouseX}px`; 
+                // --- 修正結束 ---
+                
+                this.customContextMenu.style.display = 'block';
+            }
+            hideContextMenu() { if (this.customContextMenu) this.customContextMenu.style.display = 'none'; }
+            
+            resetView() { 
+                if (this.currentFrameData) {
+                    this.calculateInitialTransform(this.currentFrameData.storyElevations, this.currentFrameData.frameGridLines);
+                    this.drawFrame_Geometry(this.currentFrameData); // (*** 修改 ***) 呼叫整合版
+                    this.showMessage("視圖已重設回初始狀態。");
+                }
+                this.hideContextMenu(); 
+            }
+            saveImage() { 
+                if (!this.currentFrameData) { this.showError("沒有圖面資料可供下載。"); return; }
+                try {
+                    const tempCanvas = this.createOfflineCanvas(); // (*** 修改 ***) 呼叫整合版
+                    const dataURL = tempCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    let fileName = 'frame_geometry.png'; 
+                    if (this.frameSelector.value) fileName = `${this.frameSelector.value.replace(':','_')}_frame.png`;
+                    link.download = fileName; link.href = dataURL; link.click();
+                    this.showMessage("圖片下載已觸發...");
+                } catch (error) { console.error("下載圖片時發生錯誤:", error); this.showError("下載圖片失敗。"); }
+                this.hideContextMenu(); 
+            }
+            async copyImage() { 
+                if (!this.currentFrameData) { this.showError("沒有圖面資料可供複製。"); return; }
+                if (!navigator.clipboard || !navigator.clipboard.write) { this.showError("您的瀏覽器不支援直接複製圖片。"); return; }
+                try {
+                    const tempCanvas = this.createOfflineCanvas(); // (*** 修改 ***) 呼叫整合版
+                    tempCanvas.toBlob(async (blob) => {
+                        if (!blob) { this.showError("無法將 Canvas 轉換為 Blob。"); return; }
+                        try { await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]); this.showMessage("圖片已複製到剪貼簿。"); }
+                        catch (err) { console.error('無法寫入剪貼簿:', err); this.showError("複製圖片失敗。"); }
+                    }, 'image/png');
+                } catch (error) { console.error("複製圖片時發生錯誤:", error); this.showError("複製圖片失敗。"); }
+                this.hideContextMenu(); 
+            }
+            
+            // (*** 修改 ***) 離線畫布 (使用整合版繪圖函數)
+            createOfflineCanvas() {
+                const tempCanvas = document.createElement('canvas'); 
+                tempCanvas.width = this.canvas.width; tempCanvas.height = this.canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = '#ffffff'; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                const originalCtx = this.ctx; this.ctx = tempCtx;
+                this.drawFrame_Geometry(this.currentFrameData); // (*** 修改 ***)
+                this.ctx = originalCtx; return tempCanvas;
+            }
+            
+            downloadDxf() {
+                if (!this.currentFrameData || this.currentFrameData.elements.length === 0) { 
+                    this.showError("沒有構架資料可供生成 DXF。"); return; 
+                }
+                this.showMessage("正在生成 DXF 檔案...", true); 
+                this.drawStatus.textContent = '(生成 DXF...)';
+                setTimeout(() => { 
+                    try { 
+                        const dxfContent = this.generateDxfContent(); 
+                        const filename = `${this.frameSelector.value.replace(':','_') || 'frame'}_frame.dxf`;
+                        
+                        const blob = new Blob([dxfContent], { type: 'application/dxf' }); 
+                        const url = URL.createObjectURL(blob); const a = document.createElement('a'); 
+                        a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+                        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100); 
+
+                        this.showMessage("DXF 檔案下載已觸發。"); this.drawStatus.textContent = '(完成)';
+                    } catch (error) { 
+                        console.error("生成或下載 DXF 時出錯:", error); 
+                        this.showError(`生成或下載 DXF 時出錯: ${error.message}`); 
+                        this.drawStatus.textContent = '(錯誤!)'; 
+                    } 
+                }, 50);
+            }
+
+            generateDxfContent() {
+                let dxf = `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n`;
+                
+                // (*** DXF 修正點 1: Frame Viewer 圖層數必須有空格，並使用正確的行數 12 ***)
+                let layers = `0\nTABLE\n2\nLAYER\n70\n12 \n`; 
+                
+                layers += `0\nLAYER\n2\n0\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+                const layerDefs = [ 
+                    { name: "GRIDS_V", color: 9 }, { name: "GRIDS_H", color: 9 }, { name: "GRID_LABELS", color: 8 },
+                    { name: "COLUMNS", color: 6 }, { name: "BEAMS_MAPPED", color: 5 }, { name: "BEAMS_UNMAPPED", color: 8 }, 
+                    { name: "BRACES", color: 3 }, { name: "LABELS_COL", color: 6 }, { name: "LABELS_BEAM_MAPPED", color: 1 }, 
+                    { name: "LABELS_BEAM_UNMAPPED", color: 8 }, { name: "LABELS_BRACE", color: 3 }
+                ];
+                layerDefs.forEach(l => { layers += `0\nLAYER\n2\n${l.name}\n70\n0\n62\n${l.color}\n6\nCONTINUOUS\n`; });
+                layers += `0\nENDTAB\n`; 
+                dxf += `0\nSECTION\n2\nTABLES\n${layers}0\nENDSEC\n`;
+                dxf += `0\nSECTION\n2\nENTITIES\n`;
+                
+                const dxfLine = (x1, y1, x2, y2, layer) => `0\nLINE\n8\n${layer}\n10\n${x1.toFixed(4)}\n20\n${y1.toFixed(4)}\n30\n0.0\n11\n${x2.toFixed(4)}\n21\n${y2.toFixed(4)}\n31\n0.0\n`;
+                
+                // (*** DXF 修正點 2: TEXT 函式確保 alignment codes 和 TEXT value 帶有空格 ***)
+                const dxfText = (x, y, height, rotation, text, layer, align = 0) => {
+                     let alignmentCodes = '';
+                     if (align === 1) { alignmentCodes = `72\n1 \n11\n${x.toFixed(4)}\n21\n${y.toFixed(4)}\n31\n0.0\n`; } 
+                     else if (align === 2) { alignmentCodes = `72\n2 \n11\n${x.toFixed(4)}\n21\n${y.toFixed(4)}\n31\n0.0\n`; } 
+                     else { alignmentCodes = `72\n0\n`; }
+                    return `0\nTEXT\n8\n${layer}\n10\n${x.toFixed(4)}\n20\n${y.toFixed(4)}\n30\n0.0\n40\n${height.toFixed(4)}\n1\n${text.replace(/[\n\r]/g, '')} \n50\n${rotation.toFixed(4)}\n${alignmentCodes}`;
+                };
+                
+                const { elements, storyElevations, frameGridLines } = this.currentFrameData;
+                const textHeight = 1.0; const gridLabelHeight = 1.25; const margin = 5.0;
+
+                let minH = Infinity, maxH = -Infinity, minV = Infinity, maxV = -Infinity;
+                if (frameGridLines) {
+                    frameGridLines.forEach(g => { minH = Math.min(minH, g.coord); maxH = Math.max(maxH, g.coord); });
+                }
+                if (storyElevations) {
+                    Object.values(storyElevations).forEach(z => { minV = Math.min(minV, z); maxV = Math.max(maxV, z); });
+                }
+                if (minH === Infinity || isNaN(minH)) { minH = -10; maxH = 10; } 
+                if (minV === Infinity || isNaN(minV)) { minV = -10; maxV = 10; }
+                if (minH === maxH) { minH -= 1; maxH += 1; } 
+                if (minV === maxV) { minV -= 1; maxV += 1; }
+                minH -= margin; maxH += margin; minV -= margin; maxV += margin;
+                
+                frameGridLines.forEach(grid => { 
+                    if (isNaN(grid.coord)) return;
+                    dxf += dxfLine(grid.coord, minV, grid.coord, maxV, "GRIDS_V"); 
+                    dxf += dxfText(grid.coord, maxV + gridLabelHeight * 0.5, gridLabelHeight, 0, grid.label, "GRID_LABELS", 1); 
+                });
+                Object.entries(storyElevations).forEach(([name, z]) => {
+                    if (isNaN(z)) return;
+                    dxf += dxfLine(minH, z, maxH, z, "GRIDS_H"); 
+                    dxf += dxfText(minH - gridLabelHeight * 0.5, z, gridLabelHeight, 0, name, "GRID_LABELS", 2); 
+                });
+                
+                elements.forEach(el => {
+                    // DXF 邏輯不包含應力比，僅繪製幾何
+                    if (isNaN(el.h1) || isNaN(el.z1) || isNaN(el.h2) || isNaN(el.z2)) return;
+                    let lineLayer = "UNKNOWN"; let labelLayer = "LABELS_UNMAPPED";
+                    if (el.type === 'COLUMN') {
+                        lineLayer = "COLUMNS"; labelLayer = "LABELS_COL";
+                    } else if (el.type === 'BRACE') {
+                        lineLayer = "BRACES"; labelLayer = "LABELS_BRACE";
+                    } else if (el.type === 'BEAM') {
+                        lineLayer = el.hasMapping ? "BEAMS_MAPPED" : "BEAMS_UNMAPPED";
+                        labelLayer = el.hasMapping ? "LABELS_BEAM_MAPPED" : "LABELS_BEAM_UNMAPPED";
+                    }
+                    dxf += dxfLine(el.h1, el.z1, el.h2, el.z2, lineLayer);
+                    const midX = (el.h1 + el.h2) / 2; const midY = (el.z1 + el.z2) / 2; 
+                    let angleRad = Math.atan2(el.z2 - el.z1, el.h2 - el.h1); 
+                    let angleDeg = angleRad * 180 / Math.PI;
+                    if (angleDeg > 90) angleDeg -= 180; else if (angleDeg < -90) angleDeg += 180;
+                    dxf += dxfText(midX, midY, textHeight, angleDeg, el.drawingLabel, labelLayer, 1); 
+                });
+                
+                dxf += `0\nENDSEC\n0\nEOF\n`; return dxf;
+            }
+
+            // --- UI 輔助 (移植) ---
+            clearCanvas() { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); }
+            showMessage(msg, isProcessing = false) { 
+                this.messageArea.textContent = msg; 
+                this.messageArea.className = isProcessing ? 'processing' : ''; 
+                this.messageArea.style.display = 'block'; 
+                if (!isProcessing) setTimeout(() => { if (this.messageArea.textContent === msg && !this.messageArea.classList.contains('error')) this.clearMessage(); }, 5000); 
+            }
+            showError(msg) { 
+                this.messageArea.textContent = msg; this.messageArea.className = 'error'; 
+                this.messageArea.style.display = 'block'; this.drawStatus.textContent = '(錯誤!)'; 
+            }
+            clearMessage() { 
+                this.messageArea.textContent = ''; this.messageArea.style.display = 'none'; this.messageArea.className = ''; 
+            }
+        }
+        // === 2D Frame 類別結束 ===
+		// ===============================================
+        // === (*** 新增 ***) 2D 平面 (Plan) 檢視器類別 (整合了應力比功能) ===
+        // ===============================================
+        class PlanViewer2D {
+            constructor(domIDs) {
+                // --- 0. 儲存 DOM 元素 ---
+                this.canvasContainer = document.getElementById(domIDs.container);
+                this.canvas = document.getElementById(domIDs.canvas);
+                this.ctx = this.canvas.getContext('2d');
+                this.storySelector = document.getElementById(domIDs.selector);
+                this.drawButton = document.getElementById(domIDs.drawButton);
+                this.dxfButton = document.getElementById(domIDs.dxfButton);
+                this.drawStatus = document.getElementById(domIDs.status);
+                this.messageArea = document.getElementById(domIDs.messageArea);
+                this.tooltip = document.getElementById(domIDs.tooltip); // (*** 新增 ***)
+                this.customContextMenu = document.getElementById(domIDs.customContextMenu);
+                this.resetViewOption = document.getElementById(domIDs.resetViewOption);
+                this.saveImageOption = document.getElementById(domIDs.saveImageOption);
+                this.copyImageOption = document.getElementById(domIDs.copyImageOption);
+
+                // --- (*** 新增 ***) 繪圖選項 DOM ---
+                this.showTextToggle = document.getElementById(domIDs.showTextToggle);
+                this.labelFontSizeInput = document.getElementById(domIDs.labelFontSizeInput);
+                this.showRatioToggle = document.getElementById(domIDs.showRatioToggle);
+                this.ratioFontSizeInput = document.getElementById(domIDs.ratioFontSizeInput);
+
+                // --- 1. 儲存解析後的資料 (將由 Vue 傳入) ---
+                this.fullMemberData = [];
+                this.gridData = { X: [], Y: [] };
+                this.storyData = [];
+                this.beamMapping = {};
+                this.mapStressData = {}; 
+                
+                this.currentPlanData = { beams: [], grids: { X: [], Y: [] } };
+                
+                // --- 2. 狀態變數 ---
+                this.scale = 1.0; this.offsetX = 0; this.offsetY = 0;
+                this.isDragging = false; this.lastMouseX = 0; this.lastMouseY = 0;
+                this.zoomFactor = 1.1;
+                this.hoveredElement = null; 
+                this.lastHoveredElement = null; 
+
+                this.bindEvents();
+                setTimeout(() => this.resizeCanvas(), 0);
+            }
+            
+            updateStressData(newStressData) {
+                this.mapStressData = newStressData || {};
+                this.triggerDraw(); 
+            }
+
+            updateMapping(newMapping) {
+                this.beamMapping = newMapping || {};
+                this.triggerDraw(); 
+            }
+
+            setData(fullMemberData, gridData, storyData, beamMapping, mapStressData) {
+                this.fullMemberData = fullMemberData;
+                this.gridData = gridData;
+                this.storyData = storyData;
+                this.beamMapping = beamMapping;
+                this.mapStressData = mapStressData || {}; 
+                
+                this.populateFloorSelector(this.storyData);
+                
+                if (this.storySelector.options.length > 0) {
+                    const storyNames = this.storyData.map(s => s.name);
+                    if (storyNames.includes("2F")) this.storySelector.value = "2F";
+                    else if (storyNames.includes("3F")) this.storySelector.value = "3F";
+                    else this.storySelector.selectedIndex = 0; 
+                    
+                    this.triggerDraw();
+                } else {
+                    this.showError("在 .$et 檔案中找不到樓層資料。");
+                }
+            }
+
+            bindEvents() {
+                const domElements = [
+                    this.canvasContainer, this.canvas, this.storySelector, this.drawButton,
+                    this.dxfButton, this.drawStatus, this.messageArea, this.tooltip,
+                    this.customContextMenu, this.resetViewOption, this.saveImageOption, this.copyImageOption,
+                    this.showTextToggle, this.labelFontSizeInput, this.showRatioToggle, this.ratioFontSizeInput
+                ];
+                if (domElements.some(el => !el)) {
+                    console.error("[PlanViewer2D] DOM binding failed. One or more elements not found.");
+                    if (this.messageArea) this.showError("2D 平面圖 DOM 綁定失敗。");
+                    return;
+                }
+                
+                this.storySelector.addEventListener('change', this.triggerDraw.bind(this));
+                this.drawButton.addEventListener('click', this.triggerDraw.bind(this));
+                this.dxfButton.addEventListener('click', this.downloadDxf.bind(this));
+                
+                this.showTextToggle.addEventListener('change', this.redrawCanvas.bind(this));
+                this.labelFontSizeInput.addEventListener('input', this.redrawCanvas.bind(this));
+                this.showRatioToggle.addEventListener('change', this.redrawCanvas.bind(this));
+                this.ratioFontSizeInput.addEventListener('input', this.redrawCanvas.bind(this));
+
+                this.canvasContainer.addEventListener('wheel', this.handleWheel.bind(this));
+                this.canvasContainer.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.canvasContainer.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.canvasContainer.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                this.canvasContainer.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
+                
+                this.canvasContainer.addEventListener('contextmenu', this.handleContextMenu.bind(this));
+                this.resetViewOption.addEventListener('click', this.resetView.bind(this));
+                this.saveImageOption.addEventListener('click', this.saveImage.bind(this));
+                this.copyImageOption.addEventListener('click', this.copyImage.bind(this));
+                
+                // (*** 修正 ***) 鍵盤事件只針對此容器生效
+                this.canvasContainer.setAttribute('tabindex', '0');
+                this.canvasContainer.addEventListener('click', () => this.canvasContainer.focus());
+                this.canvasContainer.addEventListener('keydown', this.handleKeyDown.bind(this));
+                
+                window.addEventListener('click', (event) => {
+                    if (this.customContextMenu && !this.customContextMenu.contains(event.target)) this.hideContextMenu();
+                });
+                if (window.ResizeObserver) {
+                    new ResizeObserver(this.resizeCanvas.bind(this)).observe(this.canvasContainer);
+                } else {
+                    window.addEventListener('resize', this.resizeCanvas.bind(this));
+                }
+            }
+
+            resizeCanvas() {
+                if (!this.canvasContainer || !this.canvas) return;
+                this.canvas.width = this.canvasContainer.clientWidth;
+                this.canvas.height = this.canvasContainer.clientHeight;
+                this.redrawCanvas();
+            }
+
+            populateFloorSelector(storyData) {
+                const floors = storyData.map(s => s.name);
+                if (!Array.isArray(floors) || floors.length === 0) {
+                    this.showError("在 .$ET 檔案中找不到樓層資料。");
+                    return;
+                }
+                floors.sort((a, b) => { 
+                    const getSortKey = (f) => { 
+                        if (/^\d+F$/.test(f)) return [1, parseInt(f)]; 
+                        if (/^R\d+F$/.test(f)) return [2, parseInt(f.substring(1))]; 
+                        if (/^PRF$/.test(f)) return [3, 0]; 
+                        if (/^B\d+F$/.test(f)) return [4, -parseInt(f.substring(1))]; 
+                        return [5, f]; 
+                    }; 
+                    const kA = getSortKey(a), kB = getSortKey(b); 
+                    if (kA[0] !== kB[0]) return kA[0] - kB[0]; 
+                    return kB[1] - kA[1]; 
+                });
+                this.storySelector.innerHTML = ''; 
+                floors.forEach(f => { 
+                    const opt = document.createElement('option'); 
+                    opt.value = f; opt.textContent = f; 
+                    this.storySelector.appendChild(opt); 
+                });
+            }
+
+            triggerDraw() {
+                this.dxfButton.disabled = true;
+                this.clearCanvas(); this.clearMessage();
+                const targetStory = this.storySelector.value;
+                if (!targetStory) { this.showError("請選擇一個樓層。"); return; }
+                this.showMessage("正在建立平面幾何...", true);
+                this.drawStatus.textContent = '(繪製中...)';
+                setTimeout(() => {
+                    try {
+                        this.currentPlanData = this.getPlanGeometricData(targetStory);
+                        if (this.currentPlanData.beams.length === 0 && this.currentPlanData.grids.X.length === 0 && this.currentPlanData.grids.Y.length === 0) {
+                             this.showError(`在樓層 "${targetStory}" 找不到任何梁或網格資料。`);
+                             this.drawStatus.textContent = '(錯誤!)'; 
+                             this.redrawCanvas(); 
+                             return;
+                        }
+                        this.calculateInitialTransform(this.currentPlanData.beams, this.currentPlanData.grids); 
+                        this.redrawCanvas(); 
+                        this.showMessage(`繪製完成。共 ${this.currentPlanData.beams.length} 根梁、${this.currentPlanData.grids.X.length}條X網格、${this.currentPlanData.grids.Y.length}條Y網格。`);
+                        this.drawStatus.textContent = '(完成)';
+                        this.dxfButton.disabled = false;
+                    } catch (error) { 
+                        console.error("處理或繪製平面圖時發生錯誤:", error); 
+                        this.showError(`處理或繪製平面圖時發生錯誤: ${error.message}.`); 
+                        this.drawStatus.textContent = '(錯誤!)'; 
+                        this.currentPlanData = { beams: [], grids: { X: [], Y: [] } };
+                        this.clearCanvas(); 
+                    }
+                }, 50);
+            }
+            
+            getPlanGeometricData(targetStory) {
+                const targetStoryUpper = targetStory.toUpperCase();
+                const planBeams = [];
+for (const member of this.fullMemberData) {
+                    if (member.story.toUpperCase() === targetStoryUpper && (member.id.startsWith('B') || member.id.startsWith('C'))) {
+                        const etabsSection = normalizeString(member.section);
+                        const mappedLabel = this.beamMapping[etabsSection];
+                        
+                        const shortId = member.id; 
+                        const drawingLabel = mappedLabel || shortId; 
+                        const hasMapping = (mappedLabel !== undefined);
+                        
+                        const ratio = this.mapStressData[member.story] ? this.mapStressData[member.story][shortId] : NaN;
+
+planBeams.push({
+                            type: member.id.startsWith('B') ? 'BEAM' : 'COLUMN', // (*** 在此加入這行 ***)
+                            label: member.fullId, // 'Story-B1'
+                            shortId: shortId, // 'B1' (*** 新增 ***)
+                            drawingLabel: drawingLabel, 
+                            section: member.section,
+                            hasMapping: hasMapping,
+                            x1: member.x1, y1: member.y1, x2: member.x2, y2: member.y2,
+                            ratio: ratio 
+                        });
+                    }
+                }
+                return { beams: planBeams, grids: this.gridData };
+            }
+
+            calculateInitialTransform(beams, grids) {
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                let hasValidCoords = false;
+                beams.forEach(b => { 
+                    if (!isNaN(b.x1)) { 
+                        minX = Math.min(minX, b.x1, b.x2); minY = Math.min(minY, b.y1, b.y2); 
+                        maxX = Math.max(maxX, b.x1, b.x2); maxY = Math.max(maxY, b.y1, b.y2); 
+                        hasValidCoords = true; 
+                    } 
+                });
+                if (!hasValidCoords) {
+                    if (grids.X.length > 0) {
+                        minX = grids.X.reduce((min, g) => Math.min(min, g.coord), Infinity);
+                        maxX = grids.X.reduce((max, g) => Math.max(max, g.coord), -Infinity);
+                        if(minX !== Infinity) hasValidCoords = true;
+                    }
+                     if (grids.Y.length > 0) {
+                        minY = grids.Y.reduce((min, g) => Math.min(min, g.coord), Infinity);
+                        maxY = grids.Y.reduce((max, g) => Math.max(max, g.coord), -Infinity);
+                        if(minY !== Infinity) hasValidCoords = true;
+                    }
+                }
+                if (!hasValidCoords) { this.scale = 1; this.offsetX = 0; this.offsetY = 0; return; }
+                if (minX === maxX) { minX -= 1; maxX += 1; } if (minY === maxY) { minY -= 1; maxY += 1; }
+                const padding = 50; 
+                const canvasWidth = this.canvas.width - 2 * padding; 
+                const canvasHeight = this.canvas.height - 2 * padding;
+                const dataWidth = maxX - minX; const dataHeight = maxY - minY;
+                const scaleX = dataWidth === 0 ? 1 : canvasWidth / dataWidth; 
+                const scaleY = dataHeight === 0 ? 1 : canvasHeight / dataHeight;
+                this.scale = Math.min(scaleX, scaleY) * 0.95; 
+                this.offsetX = padding + (canvasWidth - dataWidth * this.scale) / 2 - minX * this.scale; 
+                this.offsetY = padding + (canvasHeight - dataHeight * this.scale) / 2 + maxY * this.scale;
+            }
+            
+            redrawCanvas() { 
+                this.clearCanvas(); 
+                
+                const baseLabelSize = parseFloat(this.labelFontSizeInput.value) || 8;
+                const baseRatioSize = parseFloat(this.ratioFontSizeInput.value) || 8;
+                const minFontSize = 5, maxFontSize = 18; 
+                
+                let dynamicLabelSize = baseLabelSize * Math.sqrt(this.scale);
+                dynamicLabelSize = Math.max(minFontSize, Math.min(maxFontSize, dynamicLabelSize));
+                
+                let dynamicRatioSize = baseRatioSize * Math.sqrt(this.scale);
+                dynamicRatioSize = Math.max(minFontSize, Math.min(maxFontSize, dynamicRatioSize));
+
+                this.drawGrids(this.currentPlanData.grids, dynamicLabelSize * 1.2); 
+                this.drawBeams(this.currentPlanData.beams, dynamicLabelSize, dynamicRatioSize); 
+                
+                if (this.hoveredElement) {
+                    this.drawBeamHighlight(this.hoveredElement);
+                }
+            }
+
+            drawGrids(gridData, dynamicFontSize) { 
+                if (!gridData || (!gridData.X.length && !gridData.Y.length)) return;
+                const transformX = (worldX) => worldX * this.scale + this.offsetX; 
+                const transformY = (worldY) => this.offsetY - worldY * this.scale; 
+                const canvasMinX = 0, canvasMaxX = this.canvas.width; 
+                const canvasMinY = 0, canvasMaxY = this.canvas.height; 
+                const xLabelYPos = canvasMinY + dynamicFontSize * 1.2; 
+                const yLabelXPos = canvasMinX + dynamicFontSize * 1.5; 
+                const ctx = this.ctx;
+                ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]); 
+                gridData.X.forEach(grid => { const tx = transformX(grid.coord); if (tx >= canvasMinX - 10 && tx <= canvasMaxX + 10) { ctx.beginPath(); ctx.moveTo(tx, canvasMinY); ctx.lineTo(tx, canvasMaxY); ctx.stroke(); } });
+                gridData.Y.forEach(grid => { const ty = transformY(grid.coord); if (ty >= canvasMinY - 10 && ty <= canvasMaxY + 10) { ctx.beginPath(); ctx.moveTo(canvasMinX, ty); ctx.lineTo(canvasMaxX, ty); ctx.stroke(); } });
+                ctx.setLineDash([]); ctx.fillStyle = '#555'; ctx.font = `bold ${dynamicFontSize}px Arial`; 
+                ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; 
+                gridData.X.forEach(grid => { const tx = transformX(grid.coord); if (tx >= canvasMinX && tx <= canvasMaxX) ctx.fillText(grid.label, tx, xLabelYPos); });
+                ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                gridData.Y.forEach(grid => { const ty = transformY(grid.coord); if (ty >= canvasMinY && ty <= canvasMaxY) ctx.fillText(grid.label, yLabelXPos, ty); });
+            }
+
+           // (*** 風格升級 ***) macOS 風格平面繪圖
+            drawBeams(beams, dynamicLabelSize, dynamicRatioSize) { 
+                const transformX = (worldX) => worldX * this.scale + this.offsetX; 
+                const transformY = (worldY) => this.offsetY - worldY * this.scale; 
+                const ctx = this.ctx;
+                
+                const showText = this.showTextToggle.checked;
+                const showRatio = this.showRatioToggle.checked;
+
+                // 設定全域陰影 (macOS 懸浮感)
+                ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetY = 3;
+
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; 
+                const labelYOffset = -dynamicLabelSize * 1.0;
+                const ratioYOffset = dynamicRatioSize * 1.0;
+
+                beams.forEach(el => { 
+                    if (isNaN(el.x1) || isNaN(el.y1)) return; 
+                    
+                    const color = getStressRatioColor(el.ratio);
+                    const defaultBeamColor = el.hasMapping ? '#007AFF' : '#C7C7CC'; // System Blue / Gray
+                    const defaultColColor = el.hasMapping ? '#FF3B30' : '#8E8E93'; // System Red / Gray
+                    
+                    const tx1 = transformX(el.x1); const ty1 = transformY(el.y1); 
+                    
+                    if (el.type === 'BEAM') {
+                        // --- 繪製梁 (BEAM) - 圓頭粗線 ---
+                        if (isNaN(el.x2) || isNaN(el.y2)) return;
+                        const tx2 = transformX(el.x2); const ty2 = transformY(el.y2); 
+
+                        ctx.strokeStyle = (color !== '#8E8E93') ? color : defaultBeamColor;
+                        ctx.lineWidth = 4; // 加粗
+                        ctx.lineCap = 'round'; // 圓頭
+                        
+                        ctx.beginPath(); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke(); 
+                        
+                        // 繪製文字 (旋轉)
+                        const midX_canvas = (tx1 + tx2) / 2; const midY_canvas = (ty1 + ty2) / 2; 
+                        let angle = Math.atan2(ty2 - ty1, tx2 - tx1); 
+                        ctx.save(); 
+                        ctx.translate(midX_canvas, midY_canvas); 
+                        let displayAngle = angle; 
+                        if (displayAngle > Math.PI / 2 || displayAngle < -Math.PI / 2) displayAngle += Math.PI; 
+                        ctx.rotate(displayAngle); 
+                        
+                        // 暫時關閉陰影，文字才清晰
+                        ctx.shadowColor = "transparent";
+                        if (showText) {
+                            ctx.fillStyle = el.hasMapping ? '#FF3B30' : '#8E8E93'; 
+                            ctx.font = `600 ${dynamicLabelSize}px "SF Pro Text", Arial`; 
+                            ctx.fillText(el.drawingLabel, 0, labelYOffset); 
+                        }
+                        if (showRatio && !isNaN(el.ratio)) {
+                            ctx.fillStyle = (color !== '#8E8E93') ? color : '#1C1C1E';
+                            ctx.font = `500 ${dynamicRatioSize}px "SF Pro Text", Arial`;
+                            ctx.fillText(el.ratio.toFixed(3), 0, ratioYOffset);
+                        }
+                        ctx.restore(); 
+                        // 恢復陰影
+                        ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
+
+                    } else if (el.type === 'COLUMN') {
+                        // --- 繪製柱 (COLUMN) - 圓角矩形 (iOS App Icon 風格) ---
+                        const colSize = Math.max(12, dynamicLabelSize * 1.2); // 稍微大一點
+                        const halfSize = colSize / 2;
+                        
+                        ctx.fillStyle = (color !== '#8E8E93') ? color : defaultColColor;
+                        
+                        // 使用 roundRect 繪製圓角柱
+                        ctx.beginPath();
+                        if (ctx.roundRect) {
+                            ctx.roundRect(tx1 - halfSize, ty1 - halfSize, colSize, colSize, 4); // 4px 圓角
+                        } else {
+                            ctx.rect(tx1 - halfSize, ty1 - halfSize, colSize, colSize); // 舊瀏覽器降級
+                        }
+                        ctx.fill();
+                        
+                        // 繪製文字 (不旋轉)
+                        ctx.save();
+                        ctx.translate(tx1, ty1);
+                        ctx.shadowColor = "transparent"; // 關閉陰影繪製文字
+                        if (showText) {
+                            ctx.fillStyle = el.hasMapping ? '#FF3B30' : '#636366'; 
+                            ctx.font = `600 ${dynamicLabelSize}px "SF Pro Text", Arial`; 
+                            ctx.fillText(el.drawingLabel, 0, -colSize * 0.8); // 移到上方
+                        }
+                        if (showRatio && !isNaN(el.ratio)) {
+                            ctx.fillStyle = (color !== '#8E8E93') ? color : '#1C1C1E';
+                            ctx.font = `500 ${dynamicRatioSize}px "SF Pro Text", Arial`;
+                            ctx.fillText(el.ratio.toFixed(3), 0, colSize * 0.9); // 移到下方
+                        }
+                        ctx.restore();
+                        ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
+                    }
+                });
+            }
+            
+            drawBeamHighlight(beam) {
+                const transformX = (worldX) => worldX * this.scale + this.offsetX; 
+                const transformY = (worldY) => this.offsetY - worldY * this.scale; 
+                const tx1 = transformX(beam.x1); const ty1 = transformY(beam.y1); 
+                const tx2 = transformX(beam.x2); const ty2 = transformY(beam.y2);
+                const ctx = this.ctx;
+                ctx.strokeStyle = '#FFFF66'; 
+                ctx.lineWidth = 5; 
+                ctx.beginPath(); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke();
+            }
+            
+            distToSegmentSq(px, py, x1, y1, x2, y2) {
+                const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+                if (l2 === 0) return (px - x1) * (px - x1) + (py - y1) * (py - y1);
+                let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                const projX = x1 + t * (x2 - x1); const projY = y1 + t * (y2 - y1);
+                return (px - projX) * (px - projX) + (py - projY) * (py - projY);
+            }
+            
+            findHoveredElement(worldX, worldY, toleranceSq) {
+                if (!this.currentPlanData) return null;
+                for (const beam of this.currentPlanData.beams) {
+                    const distSq = this.distToSegmentSq(worldX, worldY, beam.x1, beam.y1, beam.x2, beam.y2);
+                    if (distSq < toleranceSq) {
+                        return beam;
+                    }
+                }
+                return null;
+            }
+
+            handleWheel(event) { 
+                event.preventDefault(); 
+                this.tooltip.style.display = 'none'; 
+                this.hoveredElement = null; 
+                this.lastHoveredElement = null; 
+                
+                const rect = this.canvas.getBoundingClientRect(); 
+                const mouseX = event.clientX - rect.left; const mouseY = event.clientY - rect.top;
+                const worldXBefore = (mouseX - this.offsetX) / this.scale; 
+                const worldYBefore = (this.offsetY - mouseY) / this.scale;
+                const delta = event.deltaY < 0 ? this.zoomFactor : 1 / this.zoomFactor; 
+                this.scale = this.scale * delta; 
+                this.offsetX = mouseX - worldXBefore * this.scale; 
+                this.offsetY = mouseY + worldYBefore * this.scale;
+                window.requestAnimationFrame(() => this.redrawCanvas()); 
+            }
+            handleMouseDown(event) { 
+                if(event.button !== 0) return; this.isDragging = true; 
+                this.lastMouseX = event.clientX; this.lastMouseY = event.clientY; 
+                this.canvasContainer.style.cursor = 'grabbing'; 
+                this.tooltip.style.display = 'none'; 
+            }
+            
+          handleMouseMove(event) { 
+                const rect = this.canvas.getBoundingClientRect(); 
+                const canvasMouseX = event.clientX - rect.left; 
+                const canvasMouseY = event.clientY - rect.top;
+                
+                if (this.isDragging) {
+                    this.tooltip.style.display = 'none'; 
+                    this.hoveredElement = null; 
+                    this.lastHoveredElement = null; 
+                    const deltaX = event.clientX - this.lastMouseX; 
+                    const deltaY = event.clientY - this.lastMouseY; 
+                    this.offsetX += deltaX; 
+                    this.offsetY += deltaY; 
+                    this.lastMouseX = event.clientX; 
+                    this.lastMouseY = event.clientY; 
+                    window.requestAnimationFrame(() => this.redrawCanvas()); 
+                } else {
+                    // 計算世界座標
+                    const worldX = (canvasMouseX - this.offsetX) / this.scale; 
+                    const worldY = (this.offsetY - canvasMouseY) / this.scale;
+                    const toleranceSq = (6 / this.scale) * (6 / this.scale); 
+                    
+                    this.hoveredElement = this.findHoveredElement(worldX, worldY, toleranceSq);
+
+                    if (this.hoveredElement) {
+                        const el = this.hoveredElement;
+                        const ratioText = isNaN(el.ratio) ? 'N/A' : el.ratio.toFixed(3);
+                        this.tooltip.innerHTML = `<b>${el.drawingLabel}</b><br>應力比: ${ratioText}<br><small>(${el.label})</small>`;
+                        
+                        // (*** 修正 ***) 使用 fixed 定位邏輯
+                        this.tooltip.style.display = 'block';
+                        this.tooltip.style.position = 'fixed';
+                        this.tooltip.style.left = (event.clientX + 15) + 'px';
+                        this.tooltip.style.top = (event.clientY + 15) + 'px';
+                    } else {
+                        this.tooltip.style.display = 'none';
+                    }
+                    
+                    if (this.hoveredElement !== this.lastHoveredElement) {
+                        this.lastHoveredElement = this.hoveredElement;
+                        this.redrawCanvas();
+                    }
+                }
+            }
+            handleMouseUp(event) { 
+                if (this.isDragging) { 
+                    this.isDragging = false; this.canvasContainer.style.cursor = 'grab'; 
+                    this.handleMouseMove({ clientX: event.clientX, clientY: event.clientY });
+                } 
+            }
+            handleMouseLeave() { 
+                if (this.isDragging) { this.isDragging = false; this.canvasContainer.style.cursor = 'grab'; }
+                this.tooltip.style.display = 'none';
+                if (this.hoveredElement !== null) {
+                    this.hoveredElement = null;
+                    this.lastHoveredElement = null;
+                    this.redrawCanvas();
+                }
+            }
+            
+            handleKeyDown(event) {
+                if (!this.canvasContainer || this.canvasContainer.offsetParent === null) return; 
+                if (this.storySelector.options.length === 0) return; 
+                let newIndex = this.storySelector.selectedIndex; 
+                const numOptions = this.storySelector.options.length; 
+                if (event.key === 'PageUp' || event.keyCode === 33) { 
+                    event.preventDefault(); 
+                    if (newIndex > 0) newIndex--; else newIndex = numOptions - 1; 
+                } else if (event.key === 'PageDown' || event.keyCode === 34) { 
+                    event.preventDefault(); 
+                    if (newIndex < numOptions - 1) newIndex++; else newIndex = 0; 
+                } else return; 
+                if (newIndex !== this.storySelector.selectedIndex) { 
+                    this.storySelector.selectedIndex = newIndex; 
+                    this.triggerDraw(); 
+                }
+            }
+            
+handleContextMenu(event) {
+                event.preventDefault(); this.hideContextMenu(); 
+                
+                // --- 修正開始 (考慮頁面滾動量的絕對定位) ---
+                // 將視埠座標 (event.clientX/Y) 加上頁面滾動量 (window.scrollX/Y)
+                const mouseX = event.clientX + window.scrollX;
+                const mouseY = event.clientY + window.scrollY;
+
+                this.customContextMenu.style.top = `${mouseY}px`; 
+                this.customContextMenu.style.left = `${mouseX}px`; 
+                // --- 修正結束 ---
+                
+                this.customContextMenu.style.display = 'block';
+            }
+            hideContextMenu() { if (this.customContextMenu) this.customContextMenu.style.display = 'none'; }
+            resetView() { 
+                if (this.currentPlanData.beams.length > 0 || (this.currentPlanData.grids && (this.currentPlanData.grids.X.length > 0 || this.currentPlanData.grids.Y.length > 0))) {
+                    this.calculateInitialTransform(this.currentPlanData.beams, this.currentPlanData.grids); 
+                    this.redrawCanvas(); 
+                    this.showMessage("視圖已重設回初始狀態。");
+                }
+                this.hideContextMenu(); 
+            }
+            saveImage() { 
+                if (this.currentPlanData.beams.length === 0 && (!this.currentPlanData.grids || (this.currentPlanData.grids.X.length === 0 && this.currentPlanData.grids.Y.length === 0))) { this.showError("沒有圖面資料可供下載。"); return; }
+                try {
+                    const tempCanvas = this.createOfflineCanvas(); 
+                    const dataURL = tempCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    const currentFloor = this.storySelector.value || 'floor_plan'; 
+                    link.download = `${currentFloor}_beam_grid_plan.png`;
+                    link.href = dataURL; link.click();
+                    this.showMessage("圖片下載已觸發...");
+                } catch (error) { console.error("下載圖片時發生錯誤:", error); this.showError("下載圖片失敗。"); }
+                this.hideContextMenu(); 
+            }
+            async copyImage() { 
+                if (this.currentPlanData.beams.length === 0 && (!this.currentPlanData.grids || (this.currentPlanData.grids.X.length === 0 && this.currentPlanData.grids.Y.length === 0))) { this.showError("沒有圖面資料可供複製。"); return; }
+                if (!navigator.clipboard || !navigator.clipboard.write) { this.showError("您的瀏覽器不支援直接複製圖片。"); return; }
+                try {
+                    const tempCanvas = this.createOfflineCanvas(); 
+                    tempCanvas.toBlob(async (blob) => {
+                        if (!blob) { this.showError("無法將 Canvas 轉換為 Blob。"); return; }
+                        try { await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]); this.showMessage("圖片已複製到剪貼簿。"); }
+                        catch (err) { console.error('無法寫入剪貼簿:', err); this.showError("複製圖片失敗。"); }
+                    }, 'image/png');
+                } catch (error) { console.error("複製圖片時發生錯誤:", error); this.showError("複製圖片失敗。"); }
+                this.hideContextMenu(); 
+            }
+            createOfflineCanvas() {
+                const tempCanvas = document.createElement('canvas'); 
+                tempCanvas.width = this.canvas.width; tempCanvas.height = this.canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = '#ffffff'; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                const originalCtx = this.ctx; this.ctx = tempCtx;
+                this.redrawCanvas(); 
+                this.ctx = originalCtx; return tempCanvas;
+            }
+
+            downloadDxf() {
+                if (this.currentPlanData.beams.length === 0 && (!this.currentPlanData.grids || (this.currentPlanData.grids.X.length === 0 && this.currentPlanData.grids.Y.length === 0))) { 
+                    this.showError("沒有資料可供生成 DXF。"); return; 
+                }
+                this.showMessage("正在生成 DXF 檔案...", true); 
+                this.drawStatus.textContent = '(生成 DXF...)';
+                setTimeout(() => { 
+                    try { 
+                        const dxfContent = this.generateDxfContent(); 
+                        const filename = `${this.storySelector.value || 'plan'}_beams_grids.dxf`;
+                        const blob = new Blob([dxfContent], { type: 'application/dxf' }); 
+                        const url = URL.createObjectURL(blob); const a = document.createElement('a'); 
+                        a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+                        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100); 
+                        this.showMessage("DXF 檔案下載已觸發。"); this.drawStatus.textContent = '(完成)';
+                    } catch (error) { 
+                        console.error("生成或下載 DXF 時出錯:", error); 
+                        this.showError(`生成或下載 DXF 時出錯: ${error.message}`); 
+                        this.drawStatus.textContent = '(錯誤!)'; 
+                    } 
+                }, 50);
+            }
+            
+            generateDxfContent() {
+                let dxf = `0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n0\nENDSEC\n`;
+                // (*** DXF 修正點 1: Plan Viewer 圖層數必須有空格，8後要帶空格，這是正確的 ***)
+                let layers = `0\nTABLE\n2\nLAYER\n70\n8 \n`; 
+                layers += `0\nLAYER\n2\n0\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+                const layerDefs = [ { name: "BEAMS_MAPPED", color: 5 }, { name: "LABELS_MAPPED", color: 1 }, { name: "BEAMS_UNMAPPED", color: 8 }, { name: "LABELS_UNMAPPED", color: 8 }, { name: "GRIDS", color: 9 }, { name: "GRID_LABELS", color: 8 } ];
+                layerDefs.forEach(l => { layers += `0\nLAYER\n2\n${l.name}\n70\n0\n62\n${l.color}\n6\nCONTINUOUS\n`; });
+                layers += `0\nENDTAB\n`; 
+                dxf += `0\nSECTION\n2\nTABLES\n${layers}0\nENDSEC\n`;
+                dxf += `0\nSECTION\n2\nENTITIES\n`;
+                const dxfLine = (x1, y1, x2, y2, layer) => `0\nLINE\n8\n${layer}\n10\n${x1.toFixed(4)}\n20\n${y1.toFixed(4)}\n30\n0.0\n11\n${x2.toFixed(4)}\n21\n${y2.toFixed(4)}\n31\n0.0\n`;
+// (*** DXF 修正點 2: TEXT 函式確保 alignment codes 和 TEXT value 帶有空格 ***)
+const dxfText = (x, y, height, rotation, text, layer, align = 0) => {
+     let alignmentCodes = '';
+     if (align === 1) { alignmentCodes = `72\n1 \n11\n${x.toFixed(4)}\n21\n${y.toFixed(4)}\n31\n0.0\n`; } 
+     else if (align === 2) { alignmentCodes = `72\n2 \n11\n${x.toFixed(4)}\n21\n${y.toFixed(4)}\n31\n0.0\n`; } 
+     else { alignmentCodes = `72\n0\n`; }
+    return `0\nTEXT\n8\n${layer}\n10\n${x.toFixed(4)}\n20\n${y.toFixed(4)}\n30\n0.0\n40\n${height.toFixed(4)}\n1\n${text.replace(/[\n\r]/g, '')} \n50\n${rotation.toFixed(4)}\n${alignmentCodes}`;
+};
+                const textHeight = 1.0; const gridLabelHeight = 1.25; const margin = 5.0; 
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                this.currentPlanData.beams.forEach(b => { if (!isNaN(b.x1)) { minX = Math.min(minX, b.x1, b.x2); minY = Math.min(minY, b.y1, b.y2); maxX = Math.max(maxX, b.x1, b.x2); maxY = Math.max(maxY, b.y1, b.y2); } });
+                const grids = this.currentPlanData.grids;
+                 if (minX === Infinity) { 
+                     minX = (grids.X.length > 0 ? grids.X.reduce((min, g) => Math.min(min, g.coord), Infinity) : 0) - margin; 
+                     maxX = (grids.X.length > 0 ? grids.X.reduce((max, g) => Math.max(max, g.coord), -Infinity) : 0) + margin;
+                     minY = (grids.Y.length > 0 ? grids.Y.reduce((min, g) => Math.min(min, g.coord), Infinity) : 0) - margin; 
+                     maxY = (grids.Y.length > 0 ? grids.Y.reduce((max, g) => Math.max(max, g.coord), -Infinity) : 0) + margin;
+                     if (minX === Infinity - margin || isNaN(minX)) { minX = -10; maxX = 10; minY = -10; maxY = 10; }
+                 } else { minX -= margin; minY -= margin; maxX += margin; maxY += margin; }
+                grids.X.forEach(grid => { dxf += dxfLine(grid.coord, minY, grid.coord, maxY, "GRIDS"); dxf += dxfText(grid.coord, maxY + gridLabelHeight * 1.5, gridLabelHeight, 0, grid.label, "GRID_LABELS", 1); });
+                grids.Y.forEach(grid => { dxf += dxfLine(minX, grid.coord, maxX, grid.coord, "GRIDS"); dxf += dxfText(minX - gridLabelHeight * 0.5, grid.coord, gridLabelHeight, 0, grid.label, "GRID_LABELS", 2); });
+                this.currentPlanData.beams.forEach(beam => {
+                    if (isNaN(beam.x1) || isNaN(beam.y1) || isNaN(beam.x2) || isNaN(beam.y2)) return;
+                    const beamLayer = beam.hasMapping ? "BEAMS_MAPPED" : "BEAMS_UNMAPPED"; 
+                    const labelLayer = beam.hasMapping ? "LABELS_MAPPED" : "LABELS_UNMAPPED";
+                    dxf += dxfLine(beam.x1, beam.y1, beam.x2, beam.y2, beamLayer);
+                    const midX = (beam.x1 + beam.x2) / 2; const midY = (beam.y1 + beam.y2) / 2; 
+                    let angleRad = Math.atan2(beam.y2 - beam.y1, beam.x2 - beam.x1); 
+                    let angleDeg = angleRad * 180 / Math.PI;
+                    if (angleDeg > 90) angleDeg -= 180; else if (angleDeg < -90) angleDeg += 180;
+                    dxf += dxfText(midX, midY, textHeight, angleDeg, beam.drawingLabel, labelLayer, 1); 
+                });
+                dxf += `0\nENDSEC\n0\nEOF\n`; return dxf;
+            }
+
+            clearCanvas() { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); }
+            showMessage(msg, isProcessing = false) { 
+                this.messageArea.textContent = msg; 
+                this.messageArea.className = isProcessing ? 'processing' : ''; 
+                this.messageArea.style.display = 'block'; 
+                if (!isProcessing) setTimeout(() => { if (this.messageArea.textContent === msg && !this.messageArea.classList.contains('error')) this.clearMessage(); }, 5000); 
+            }
+            showError(msg) { 
+                this.messageArea.textContent = msg; this.messageArea.className = 'error'; 
+                this.messageArea.style.display = 'block'; this.drawStatus.textContent = '(錯誤!)'; 
+            }
+            clearMessage() { 
+                this.messageArea.textContent = ''; this.messageArea.style.display = 'none'; this.messageArea.className = ''; 
+            }
+        }
+        // === 2D Plan 類別結束 ===
+
+
+        // ===============================================
+        // === 3D 檢視器類別 (來自 模型.html, 不變) ===
+        // ===============================================
+        class ThreeDViewer {
+            constructor(container) {
+                this.container = container; this.isReady = true; this.scene = null; this.renderer = null;
+                this.camera = null; this.controls = null; this.memberGroup = null;
+                this.materials = this.defineMaterials(); this.setupRenderer();
+            }
+            defineMaterials() {
+                const THREE = window.THREE;
+                return {
+                    '柱 (Column)': new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 }),
+                    '梁 (Beam)': new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 2 }),
+                    '斜撐 (Brace)': new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 }),
+                    '未知 (Unknown)': new THREE.LineBasicMaterial({ color: 0x808080, linewidth: 1 })
+                };
+            }
+            setupRenderer() {
+                const THREE = window.THREE;
+                const width = this.container.clientWidth; const height = this.container.clientHeight;
+                this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0xffffff);
+                this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000);
+                this.camera.position.set(50, 50, 50);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(width, height);
+                while (this.container.firstChild) { this.container.removeChild(this.container.firstChild); }
+                this.container.appendChild(this.renderer.domElement);
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true; this.controls.dampingFactor = 0.05;
+                this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(100, 100, 50); this.scene.add(directionalLight);
+                this.scene.add(new THREE.AxesHelper(50)); this.scene.add(new THREE.GridHelper( 200, 20 ));
+                window.addEventListener('resize', this.onWindowResize.bind(this), false);
+   // (*** 修正點 3: 確保初始化後尺寸正確，且為 reshow 準備 ***)
+                this.onWindowResize(); // 確保首次渲染尺寸正確
+                this.animate();
+            }
+            animate() {
+                if (!this.renderer || !this.isReady) return;
+                requestAnimationFrame(this.animate.bind(this));
+                this.controls.update(); this.renderer.render(this.scene, this.camera);
+            }
+			reshow() {
+                if (!this.renderer || !this.isReady) return;
+                
+                // 強制瀏覽器在下一個動畫幀中執行尺寸計算
+                requestAnimationFrame(() => {
+                    this.onWindowResize();
+                    // 由於 WebGL/Canvas 隱藏後恢復可能需要一點時間才能確定尺寸，
+                    // 這裡可以選擇性地延遲一個很短的時間再次更新（通常 onWindowResize 就足夠）
+                    setTimeout(() => {
+                        this.onWindowResize();
+                    }, 50); 
+                });
+            }
+onWindowResize() {
+                if (!this.camera || !this.renderer || !this.container) return;
+                
+                // --- 修正點 1：獲取尺寸並增加保護 ---
+                const width = this.container.clientWidth;
+                const height = this.container.clientHeight;
+                
+                // 如果容器還沒有尺寸 (例如 v-if 剛切換)，則不執行任何操作
+                if (width === 0 || height === 0) return; 
+                // --- 修正結束 ---
+
+                this.camera.aspect = width / height;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(width, height);
+            }
+            destroy() {
+                this.isReady = false; if (this.renderer) this.renderer.dispose();
+                if (this.scene) this.scene.clear();
+                window.removeEventListener('resize', this.onWindowResize.bind(this));
+                this.renderer = null; this.scene = null; this.camera = null; this.controls = null;
+            }
+            drawMembers(memberData) {
+                const THREE = window.THREE;
+                if (this.memberGroup) { this.scene.remove(this.memberGroup); }
+                this.memberGroup = new THREE.Group(); const boundingBox = new THREE.Box3();
+                if (!memberData || memberData.length === 0) {
+                    const statusElement = document.getElementById('threeDStatus');
+                    if (statusElement) { statusElement.textContent = "未找到可繪製的桿件。"; statusElement.style.display = 'block'; }
+                    return;
+                }
+                memberData.forEach(member => {
+                    const p1 = new THREE.Vector3(member.x1, member.z1, -member.y1); 
+                    const p2 = new THREE.Vector3(member.x2, member.z2, -member.y2); 
+                    const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+                    const material = this.materials[member.type] || this.materials['未知 (Unknown)'];
+                    const line = new THREE.Line(geometry, material); this.memberGroup.add(line);
+                    boundingBox.expandByPoint(p1); boundingBox.expandByPoint(p2);
+                });
+                if (boundingBox.isEmpty()) { boundingBox.setFromCenterAndSize(new THREE.Vector3(0,0,0), new THREE.Vector3(10,10,10)); }
+                this.scene.add(this.memberGroup); this.fitCameraToGroup(boundingBox);
+                const statusElement = document.getElementById('threeDStatus');
+                if (statusElement) statusElement.style.display = 'none';
+            }
+            fitCameraToGroup(boundingBox) {
+                const THREE = window.THREE; 
+                if (!this.camera || boundingBox.isEmpty()) return;
+                const center = new THREE.Vector3(); boundingBox.getCenter(center);
+                const size = new THREE.Vector3(); boundingBox.getSize(size);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = this.camera.fov * (Math.PI / 180);
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+                cameraZ = cameraZ === 0 ? 100 : cameraZ; cameraZ *= 2.0; 
+                this.camera.position.set(center.x + cameraZ, center.y + cameraZ * 0.5, center.z + cameraZ);
+                this.controls.target.copy(center); this.controls.update();
+            }
+			reshow() {
+                if (!this.renderer || !this.isReady || !this.container) return;
+
+                const checkSizeAndResize = () => {
+                    const width = this.container.clientWidth;
+                    const height = this.container.clientHeight;
+
+                    if (width > 0 && height > 0) {
+                        // 成功！容器已有尺寸，執行重設
+                        console.log(`[ThreeDViewer] Reshow: 偵測到尺寸 ${width}x${height}. 正在重設...`);
+                        this.onWindowResize();
+                    } else {
+                        // 容器尺寸仍為 0，等待下一幀動畫再試一次
+                        console.warn("[ThreeDViewer] Reshow: 容器尺寸為 0。等待下一幀...");
+                        requestAnimationFrame(checkSizeAndResize);
+                    }
+                };
+
+                // 開始檢查
+                checkSizeAndResize();
+            }
+        }
+        // === 3D 類別結束 ===
+
+
+        // ===============================================
+        // === VUE APP (*** 嚴謹修正：放在所有 Class 之後 ***) ===
+        // ===============================================
+
+        createApp({
+            setup() {
+                // --- 檔案 ---
+                const fileName = ref('未選擇檔案');
+                const fileInput = ref(null);
+                const isDragOver = ref(false);
+                const mappingFileName = ref('未選擇檔案');
+                const mappingInput = ref(null);
+                const beamMapping = ref({});
+                // (*** 新增 ***)
+                const mapFileName = ref('未選擇檔案');
+                const mapInput = ref(null);
+                const mapStressData = ref({});
+                
+                // --- 資料 ---
+                const message = ref('');
+                const storyResults = ref([]);
+                const sequencedStories = ref([]);
+                const memberData = ref([]);
+                const gridData = ref({ X: [], Y: [] });
+                const pointCoords = ref(new Map());
+                
+                // --- 3D 狀態 ---
+                const is3DVisible = ref(false);
+                const is3DAttempted = ref(false);
+                const isLoading3D = ref(false);
+                let threeDViewerInstance = null;
+                
+                // --- 2D Frame 狀態 ---
+                const is2DVisible = ref(false);
+                let frameViewerInstance = null;
+                
+                // --- 2D Plan 狀態 ---
+                const isPlanVisible = ref(false);
+                let planViewerInstance = null;
+
+                const downloadTypes = ['全部桿件', '梁 (Beam)', '柱 (Column)', '斜撐 (Brace)'];
+
+                const memberStats = computed(() => {
+                    const counts = { '柱 (Column)': 0, '梁 (Beam)': 0, '斜撐 (Brace)': 0, '未知 (Unknown)': 0 };
+                    memberData.value.forEach(member => {
+                        if (counts.hasOwnProperty(member.type)) counts[member.type]++;
+                        else counts['未知 (Unknown)']++;
+                    });
+                    return {
+                        total: memberData.value.length, column: counts['柱 (Column)'],
+                        beam: counts['梁 (Beam)'], brace: counts['斜撐 (Brace)'],
+                        unknown: counts['未知 (Unknown)']
+                    };
+                });
+                
+                const formatElevation = (elev) => Object.is(elev, -0) ? "0.000" : elev.toFixed(3);
+
+                const triggerFileInput = () => { fileInput.value.click(); };
+                const handleFileDrop = (e) => { isDragOver.value = false; if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]); };
+                const handleFileSelect = (e) => { if (e.target.files.length) processFile(e.target.files[0]); };
+
+                const processFile = (file) => {
+                    fileName.value = file.name;
+                    message.value = ''; storyResults.value = []; sequencedStories.value = [];
+                    memberData.value = []; gridData.value = { X: [], Y: [] }; pointCoords.value = new Map();
+                    
+                    // (*** 修改 ***) 清除所有資料
+                    mapFileName.value = '未選擇檔案';
+                    mapStressData.value = {};
+                    mappingFileName.value = '未選擇檔案';
+                    beamMapping.value = {};
+
+                    if (threeDViewerInstance) { threeDViewerInstance.destroy(); threeDViewerInstance = null; }
+                    is3DVisible.value = false; is3DAttempted.value = false;
+                    
+                    // (*** 修改 ***) 確保舊實例被清除
+                    is2DVisible.value = false; 
+                    if (frameViewerInstance) { frameViewerInstance = null; } // 僅清除實例，DOM保留
+                    
+                    isPlanVisible.value = false; 
+                    if (planViewerInstance) { planViewerInstance = null; } // 僅清除實例，DOM保留
+
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const content = e.target.result;
+                        try {
+                            const { results: sResults, sequenced: sSequenced } = parseAndCalculateStories(content);
+                            storyResults.value = sResults; 
+                            sequencedStories.value = sSequenced; // (*** 儲存 sequenced ***)
+                            const storyElevationMap = new Map(sResults.map(s => [s.name, s.elevation]));
+                            gridData.value = parseGrids(content);
+                            pointCoords.value = parsePointCoordinates(content);
+                            memberData.value = parseMemberCoordinates(content, storyElevationMap, sSequenced);
+                        } catch (error) {
+                            message.value = `處理 .$et 檔案時發生錯誤: ${error.message}`; console.error(error);
+                        }
+                    };
+                    reader.onerror = () => { message.value = '無法讀取 .$et 檔案。'; };
+                    const readerCP950 = new FileReader();
+                    readerCP950.onload = reader.onload; 
+                    readerCP950.onerror = () => {
+                         console.warn("CP950 讀取 .$et 失敗，嘗試 UTF-8");
+                         reader.readAsText(file, 'UTF-8');
+                    };
+                    readerCP950.readAsText(file, 'CP950');
+                };
+                
+                const triggerMappingInput = () => { mappingInput.value.click(); };
+                
+                const handleMappingFileSelect = (e) => {
+                    if (!e.target.files.length) return;
+                    const file = e.target.files[0];
+                    mappingFileName.value = file.name;
+                    
+                    readFileAsText(file, 'UTF-8').then(content => { 
+                         beamMapping.value = parseMappingFile(content);
+                         message.value = `尺寸標示檔案已載入 (UTF-8)，共 ${Object.keys(beamMapping.value).length} 個對應。`;
+                         if (planViewerInstance) planViewerInstance.updateMapping(beamMapping.value);
+                         if (frameViewerInstance) frameViewerInstance.updateMapping(beamMapping.value);
+                     }).catch(error => { 
+                         console.warn("UTF-8 讀取失敗，嘗試 CP950 (Big5)...");
+                         readFileAsText(file, 'CP950').then(content => {
+                             beamMapping.value = parseMappingFile(content);
+                             message.value = `尺寸標示檔案已載入 (CP950)，共 ${Object.keys(beamMapping.value).length} 個對應。`;
+                             if (planViewerInstance) planViewerInstance.updateMapping(beamMapping.value);
+                             if (frameViewerInstance) frameViewerInstance.updateMapping(beamMapping.value);
+                         }).catch(err2 => {
+                             message.value = `讀取 尺寸標示.TXT 失敗 (UTF-8 & CP950): ${err2.message}`;
+                             beamMapping.value = {}; 
+                         });
+                     });
+                };
+                
+                // (*** 新增 ***) 處理 .map 檔案
+                const triggerMapInput = () => { mapInput.value.click(); };
+                
+                const handleMapFileSelect = (e) => {
+                    if (!e.target.files.length) return;
+                    const file = e.target.files[0];
+                    mapFileName.value = file.name;
+                    
+                    readFileAsText(file, 'CP950').then(content => {
+                        mapStressData.value = parseMapFile(content); // 使用 V6.14 函數
+                        message.value = `.MAP 檔案已載入 (CP950)，共 ${Object.keys(mapStressData.value).length} 個樓層應力比。`;
+                        if (planViewerInstance) planViewerInstance.updateStressData(mapStressData.value);
+                        if (frameViewerInstance) frameViewerInstance.updateStressData(mapStressData.value);
+                    }).catch(error => {
+                        message.value = `讀取 .MAP 檔案失敗 (CP950): ${error.message}`;
+                        mapStressData.value = {};
+                    });
+                };
+
+                
+const toggle3DViewer = () => {
+                    is3DVisible.value = !is3DVisible.value;
+                    
+                    // (*** 修正點 3：使用 nextTick 確保 DOM 存在，然後呼叫 reshow ***)
+                    nextTick(() => {
+                        if (is3DVisible.value) {
+                            // 當 v-if 設置為 true 時
+                            if (!is3DAttempted.value) {
+                                // 首次載入
+                                loadAndSetup3D(memberData.value);
+                            } else if (threeDViewerInstance) {
+                                // 非首次，呼叫我們新的、帶有輪詢功能的 reshow
+                                threeDViewerInstance.reshow();
+                            }
+                        }
+                    });
+                };
+                async function loadAndSetup3D(data) {
+                    isLoading3D.value = true; is3DAttempted.value = true;
+                    try {
+                        const container = document.getElementById('threeDContainer');
+                        if (!container) throw new Error('3D container not found.');
+                        if (typeof window.THREE === 'undefined') await loadScript("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js");
+                        if (typeof window.THREE.OrbitControls === 'undefined') await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"); 
+                        if (typeof window.THREE === 'undefined' || typeof window.THREE.OrbitControls === 'undefined') throw new Error('THREE.js or OrbitControls failed to load.');
+                        if (threeDViewerInstance) threeDViewerInstance.destroy();
+                        threeDViewerInstance = new ThreeDViewer(container);
+                        threeDViewerInstance.drawMembers(data);
+                    } catch (error) {
+                        console.error("3D 系統載入失敗：", error); message.value = `3D 預覽載入失敗： ${error.message}。`;
+                        is3DVisible.value = false; is3DAttempted.value = false; threeDViewerInstance = null;
+                    } finally { isLoading3D.value = false; }
+                }
+                function loadScript(url) {
+                    return new Promise((resolve, reject) => {
+                        const script = document.createElement('script'); script.src = url; script.async = true; 
+                        script.onload = resolve;
+                        script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+                        document.head.appendChild(script);
+                    });
+                }
+                
+               // (*** 修正 ***) 2D 構架切換邏輯：關閉時清空實例，開啟時強制重建
+                const toggle2DViewer = () => {
+                    is2DVisible.value = !is2DVisible.value;
+                    
+                    if (is2DVisible.value) {
+                        // 開啟：等待 Vue 更新 DOM (nextTick) 後，強制 New 一個新的 Viewer
+                        nextTick(() => {
+                            try {
+                                frameViewerInstance = new FrameViewer2D({
+                                    container: 'frameCanvasContainer', canvas: 'frameCanvas',
+                                    selector: 'frameSelector', status: 'frameDrawStatus',
+                                    messageArea: 'frameMessageArea', tooltip: 'frameTooltip',
+                                    customContextMenu: 'frameCustomContextMenu',
+                                    resetViewOption: 'frameResetViewOption', saveImageOption: 'frameSaveImageOption',
+                                    copyImageOption: 'frameCopyImageOption',
+                                    dxfButton: 'frameDownloadDxfButton',
+                                    showTextToggle: 'frameShowTextToggle', 
+                                    labelFontSizeInput: 'frameLabelFontSize',
+                                    showRatioToggle: 'frameShowRatioToggle',
+                                    ratioFontSizeInput: 'frameRatioFontSize'
+                                });
+                                frameViewerInstance.setData(
+                                    memberData.value, gridData.value, 
+                                    storyResults.value, 
+                                    pointCoords.value,
+                                    beamMapping.value,
+                                    mapStressData.value 
+                                );
+                            } catch (error) {
+                                console.error("初始化 2D Frame Viewer 失敗:", error);
+                                message.value = `2D 構架圖初始化失敗: ${error.message}`;
+                                is2DVisible.value = false; frameViewerInstance = null;
+                            }
+                        });
+                    } else {
+                        // 關閉：銷毀實例，確保下次開啟時不會使用舊的
+                        frameViewerInstance = null;
+                    }
+                };
+                
+                // (*** 修正 ***) 2D 平面切換邏輯：同上
+                const togglePlanViewer = () => {
+                    isPlanVisible.value = !isPlanVisible.value;
+                    
+                    if (isPlanVisible.value) {
+                        nextTick(() => {
+                            try {
+                                planViewerInstance = new PlanViewer2D({
+                                    container: 'planCanvasContainer', canvas: 'planCanvas',
+                                    selector: 'storySelector',
+                                    drawButton: 'planDrawButton', dxfButton: 'downloadDxfButton',
+                                    status: 'planDrawStatus', messageArea: 'planMessageArea',
+                                    customContextMenu: 'planCustomContextMenu',
+                                    resetViewOption: 'planResetViewOption', saveImageOption: 'planSaveImageOption',
+                                    copyImageOption: 'planCopyImageOption',
+                                    tooltip: 'planTooltip', 
+                                    showTextToggle: 'planShowTextToggle', 
+                                    labelFontSizeInput: 'planLabelFontSize',
+                                    showRatioToggle: 'planShowRatioToggle',
+                                    ratioFontSizeInput: 'planRatioFontSize'
+                                });
+                                planViewerInstance.setData(
+                                    memberData.value, 
+                                    gridData.value, 
+                                    storyResults.value, 
+                                    beamMapping.value,
+                                    mapStressData.value 
+                                );
+                            } catch (error) {
+                                console.error("初始化 2D Plan Viewer 失敗:", error);
+                                message.value = `2D 平面圖初始化失敗: ${error.message}`;
+                                isPlanVisible.value = false; planViewerInstance = null;
+                            }
+                        });
+                    } else {
+                        planViewerInstance = null;
+                    }
+                };
+
+                const downloadCsv = (typeFilter) => {
+                    let filteredData = memberData.value;
+                    let filenameSuffix = '';
+                    if (typeFilter !== '全部桿件') {
+                        filteredData = memberData.value.filter(member => member.type === typeFilter);
+                        filenameSuffix = typeFilter.replace(/\s\([^)]+\)/g, '').replace(' ', '_');
+                    } else { filenameSuffix = 'all'; }
+                    if (!filteredData || filteredData.length === 0) {
+                        message.value = `沒有${typeFilter}資料可供下載。`; return;
+                    }
+                    const headers = ["唯一桿件ID", "樓層", "桿件ID", "類型", "斷面", "P1_ID", "X1", "Y1", "Z1", "P2_ID", "X2", "Y2", "Z2"];
+                    let csv = headers.join(',') + '\n';
+                    filteredData.forEach(member => {
+                        const row = [
+                            member.fullId, member.story, member.id, member.type.replace(/\s\([^)]+\)/g, ''), member.section,
+                            member.p1_id, member.x1.toFixed(5), member.y1.toFixed(5), member.z1.toFixed(5),
+                            member.p2_id, member.x2.toFixed(5), member.y2.toFixed(5), member.z2.toFixed(5)
+                        ];
+                        csv += row.join(',') + '\n';
+                    });
+                    const BOM = "\ufeff";
+                    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    if (link.download !== undefined) { 
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", `member_coordinates_${filenameSuffix}.csv`);
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                    } else { message.value = '您的瀏覽器不支持自動下載。'; }
+                };
+                
+                return {
+                    fileName, message, isDragOver, storyResults, memberData, fileInput,
+                    memberStats, downloadTypes, formatElevation,
+                    triggerFileInput, handleFileDrop, handleFileSelect, downloadCsv,
+                    
+                    mappingFileName, mappingInput, triggerMappingInput, handleMappingFileSelect,
+                    
+                    mapFileName, mapInput, mapStressData, triggerMapInput, handleMapFileSelect,
+
+                    is3DVisible, is3DAttempted, isLoading3D, toggle3DViewer,
+                    is2DVisible, toggle2DViewer,
+                    isPlanVisible, togglePlanViewer
+                };
+            }
+        }).mount('#app'); // (*** 嚴謹修正：將 .mount('#app') 放在最後 ***)
+
+    </script>
+</body>
+</html>

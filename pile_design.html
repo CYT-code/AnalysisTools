@@ -1,0 +1,804 @@
+<!--
+    🏗️ 基樁詳細選樁分析系統
+    Copyright (c) 2025
+    
+    保留所有權利 (All Rights Reserved)。
+    
+    授權說明：
+    本程式碼及相關介面設計僅供 [授權單位/專案] 內部使用。
+    未經著作權人書面許可，不得以任何形式複製、修改、分發或公開展示本軟體。
+    本軟體按「原樣」提供，不提供任何明示或暗示的保證，包括但不限於適銷性、特定用途適用性和不侵權的保證。
+-->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<script>
+  // 設定正確密碼
+  var correctPassword = "80649660"; 
+
+  // 跳出視窗
+  var input = prompt("【信業工程顧問股份有限公司 結構設計部專用工具】\n\n⚠️ 內部使用請勿外流 ⚠️\n請輸入使用密碼以繼續：");
+
+  // 判斷邏輯：如果輸入的密碼 不等於 正確密碼 (或是按了取消)
+  if (input !== correctPassword) {
+    // 1. 強制用這段文字覆蓋掉整個網頁
+    document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;"><h1>🚫 密碼錯誤或非本公司人員，禁止存取</h1></div>');
+    
+    // 2. 命令瀏覽器立刻停止載入剩下的 HTML
+    window.stop();
+    
+    // 3. 拋出一個錯誤來確保下方的程式碼絕對不會執行 (保險起見)
+    throw new Error("Access Denied");
+  }
+</script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基樁選樁分析系統 (文字貼上版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .modal-open { overflow: hidden; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .markdown-body p { margin-bottom: 1em; }
+        
+        /* Loading Animation */
+        .sparkle-loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        textarea {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: scroll;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col">
+
+    <!-- Top Bar for API Key -->
+    <div class="bg-indigo-900 text-white py-3 px-4 shadow-md flex-none">
+        <div class="max-w-[95%] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">✨</span>
+                <span class="font-bold tracking-wide">AI 智慧模組</span>
+            </div>
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+                <label for="api-key-input" class="text-sm text-indigo-200 whitespace-nowrap">Gemini API Key:</label>
+                <input type="password" id="api-key-input" placeholder="請在此貼上您的 API Key" class="px-3 py-1 text-slate-800 rounded text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-indigo-300 hover:text-white underline whitespace-nowrap">取得 Key</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-grow max-w-[95%] mx-auto px-4 py-8 w-full">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">🏗️ 基樁詳細選樁分析系統 <span class="text-indigo-600 text-lg align-top bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">AI Powered</span></h1>
+            <p class="text-slate-600">直接貼上 Excel 數據，針對 P(承壓) 與 T(拉拔) 進行安全係數檢核</p>
+        </header>
+
+        <!-- Logic Explanation -->
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 mb-8 rounded shadow-sm">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3 w-full">
+                    <h3 class="text-sm font-bold text-amber-800 uppercase tracking-wide">檢查邏輯與新格式說明</h3>
+                    <div class="mt-2 text-sm text-amber-900 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>承壓力 P</strong>：容許值 ≧ (分析值 × SF)</li>
+                            <li><strong>拉拔力 T</strong>：(容許值 × -1) ≦ (分析值 × SF)</li>
+                        </ul>
+                        <div class="text-xs text-amber-700 bg-amber-100 p-2 rounded">
+                            <p><strong>容許值格式 (8欄):</strong> 基樁尺寸 | 深度 | P(長) | P(短) | P(極) | T(長) | T(短) | T(極)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Analysis Input -->
+            <div class="bg-white p-4 rounded-lg shadow border border-slate-200 flex flex-col h-[500px]">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-bold flex items-center text-blue-700">
+                        <span class="bg-blue-100 text-blue-700 py-1 px-2 rounded text-sm mr-2">1</span>
+                        貼上 分析結果數據
+                    </h2>
+                    <button onclick="clearAnalysis()" class="text-xs text-slate-400 hover:text-red-500 underline">清空</button>
+                </div>
+                <div class="flex-grow relative">
+                    <textarea id="input-analysis" class="w-full h-full p-4 border border-slate-300 rounded focus:ring-2 focus:ring-blue-400 focus:border-transparent text-xs leading-relaxed resize-none" placeholder="請從 Excel 複製數據並貼上 (不含標題列)&#10;格式範例:&#10;點位ID  P(長)  P(短)  P(極)  T(長)  T(短)  T(極)&#10;16      1192   1401   1723   -59    -766   -1088&#10;..."></textarea>
+                </div>
+                <div class="mt-2 text-xs text-slate-500 flex justify-between">
+                    <span>欄位順序: 點位, P(長), P(短), P(極), T(長), T(短), T(極)</span>
+                    <span id="count-analysis" class="font-bold">0 筆</span>
+                </div>
+            </div>
+
+            <!-- Allowable Input -->
+            <div class="bg-white p-4 rounded-lg shadow border border-slate-200 flex flex-col h-[500px]">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-bold flex items-center text-emerald-700">
+                        <span class="bg-emerald-100 text-emerald-700 py-1 px-2 rounded text-sm mr-2">2</span>
+                        貼上 容許值數據
+                    </h2>
+                    <button onclick="clearAllowable()" class="text-xs text-slate-400 hover:text-red-500 underline">清空</button>
+                </div>
+                <div class="flex-grow relative">
+                    <textarea id="input-allowable" class="w-full h-full p-4 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-400 focus:border-transparent text-xs leading-relaxed resize-none" placeholder="請從 Excel 複製數據並貼上 (不含標題列)&#10;格式範例:&#10;尺寸     深度  P(長)  P(短)  P(極)  T(長)  T(短)  T(極)&#10;1.2×2.5  50    3110   4316   5797   573    721    870&#10;..."></textarea>
+                </div>
+                <div class="mt-2 text-xs text-slate-500 flex justify-between">
+                    <span>欄位順序: 尺寸, 深度, P(長), P(短), P(極), T(長), T(短), T(極)</span>
+                    <span id="count-allowable" class="font-bold">0 筆</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action & Settings -->
+        <div class="flex flex-col items-center justify-center mb-10 space-y-4">
+            <!-- Safety Factor Input -->
+            <div class="flex items-center space-x-3 bg-white p-4 rounded-lg shadow border border-gray-200">
+                <label for="safety-factor" class="font-bold text-gray-700">🛡️ 安全係數 (Safety Factor):</label>
+                <div class="relative">
+                    <input type="number" id="safety-factor" value="1.01" step="0.01" min="1.00" class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-lg text-center font-bold text-indigo-700">
+                </div>
+                <span class="text-sm text-gray-400">(預設 1.01)</span>
+            </div>
+
+            <div class="flex space-x-4">
+                <button onclick="loadDemoData()" class="bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-full shadow hover:bg-gray-300 transition-all text-sm">
+                    載入範例數據
+                </button>
+                <button id="btn-process" class="bg-indigo-600 text-white font-bold py-3 px-10 rounded-full shadow-lg transform transition-all duration-200 hover:bg-indigo-700 hover:scale-105 hover:shadow-xl ring-2 ring-offset-2 ring-transparent focus:ring-indigo-500 flex items-center justify-center">
+                    <span>開始檢核</span>
+                </button>
+            </div>
+            <p id="error-msg" class="text-red-600 font-bold text-sm hidden bg-red-50 px-4 py-1 rounded border border-red-200"></p>
+        </div>
+
+        <!-- Results -->
+        <div id="result-section" class="hidden animate-fade-in-up">
+            
+            <!-- AI Summary Section -->
+            <div class="mb-8 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-purple-200 rounded-full blur-xl opacity-50"></div>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 relative z-10">
+                    <div class="flex items-center space-x-2">
+                        <div class="bg-indigo-600 text-white p-1.5 rounded-lg shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-indigo-900">AI 工程總結報告</h3>
+                    </div>
+                    <button id="btn-ai-summary" class="mt-2 md:mt-0 bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 font-bold py-1.5 px-4 rounded-full text-sm shadow-sm transition-all flex items-center">
+                        <span class="mr-1">✨</span> 生成報告
+                    </button>
+                </div>
+                <div id="ai-summary-content" class="text-slate-600 text-sm leading-relaxed markdown-body">
+                    <p class="italic text-slate-400">點擊「生成報告」按鈕，讓 AI 為您撰寫本次基樁選樁的工程總結分析。</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-end md:items-center mb-4 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">分析結果預覽 <span id="sf-display" class="text-sm font-normal text-indigo-600 ml-2 bg-indigo-50 px-2 py-1 rounded"></span></h2>
+                    <p class="text-sm text-slate-500 mt-1">預覽僅顯示前 100 筆。完整結果請下載 CSV。</p>
+                </div>
+                <button id="btn-download" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded shadow-md flex items-center justify-center transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    下載詳細報告 (CSV)
+                </button>
+            </div>
+
+            <div class="bg-white rounded-lg shadow overflow-hidden border border-slate-200">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-bold text-slate-600">點位 ID</th>
+                                <th class="px-4 py-3 text-left font-bold text-slate-600">P(極限) / T(極限) (原始)</th>
+                                <th class="px-4 py-3 text-left font-bold text-slate-600">建議樁型</th>
+                                <th class="px-4 py-3 text-center font-bold text-slate-600">符合數</th>
+                                <th class="px-4 py-3 text-center font-bold text-slate-600">狀態</th>
+                                <th class="px-4 py-3 text-center font-bold text-slate-600">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="result-body" class="bg-white divide-y divide-slate-200">
+                            <!-- Rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer with License -->
+    <footer class="bg-slate-800 text-slate-300 py-6 mt-12 flex-none">
+        <div class="max-w-[95%] mx-auto px-4 flex flex-col md:flex-row justify-between items-center text-sm">
+            <div class="mb-2 md:mb-0">
+                <p>&copy; 2025 基樁選樁分析系統. 保留所有權利 (All Rights Reserved).</p>
+                <p class="text-xs text-slate-500 mt-1">僅限信業工程顧問股份有限公司專案使用，禁止未經授權之複製或分發。</p>
+            </div>
+            <div>
+                <button onclick="showLicense()" class="hover:text-white underline decoration-slate-500 hover:decoration-white transition-colors">
+                    授權條款與免責聲明
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal for License -->
+    <div id="license-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-[60] p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-2xl max-w-lg w-full flex flex-col animate-scale-in">
+            <div class="p-6 border-b border-gray-200 bg-slate-50 rounded-t-lg">
+                <h3 class="text-xl font-bold text-slate-800">授權條款與免責聲明</h3>
+            </div>
+            <div class="p-6 overflow-y-auto max-h-[60vh] text-sm text-slate-700 space-y-4">
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-1">1. 使用權限</h4>
+                    <p>本軟體（以下簡稱「本系統」）僅授權予特定工程專案內部人員使用。未經著作權人明確書面許可，嚴禁將本系統用於商業轉售、公開分發或作為第三方服務的一部分。</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-1">2. 智慧財產權</h4>
+                    <p>本系統之程式碼、設計介面及運算邏輯均受著作權法保護。所有權利均歸開發者所有。</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-1">3. 免責聲明 (重要)</h4>
+                    <p class="bg-red-50 p-3 rounded border-l-4 border-red-500 text-red-800">
+                        本系統僅作為輔助工程運算之工具。使用者應理解，所有輸出結果必須經過專業工程師的覆核與驗證。開發者不對因使用本系統而導致的任何結構安全問題、數據錯誤或經濟損失承擔責任。
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-1">4. 數據隱私</h4>
+                    <p>本系統為純前端運作，所有數據分析皆在使用者之瀏覽器內完成，不會上傳至任何外部伺服器（除使用 AI 功能時，部分數據會傳送至 Google Gemini API）。</p>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg text-right">
+                <button onclick="closeLicense()" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded font-bold transition-colors">我已了解</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Detail View -->
+    <div id="detail-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col animate-scale-in">
+            <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
+                <h3 class="text-xl font-bold text-slate-800" id="modal-title">點位詳細比對</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <div id="modal-content">
+                    <!-- Dynamic Content -->
+                </div>
+                
+                <!-- AI Insight Block inside Modal -->
+                <div id="ai-insight-block" class="mt-6 border-t pt-4 hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-indigo-800 flex items-center">
+                            <span class="mr-2">✨</span> AI 專家分析
+                        </h4>
+                        <button id="btn-ai-detail" class="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-3 py-1 rounded-full font-bold transition-colors">
+                            分析此點位
+                        </button>
+                    </div>
+                    <div id="ai-detail-result" class="bg-indigo-50 p-3 rounded-lg text-sm text-slate-600 min-h-[60px] markdown-body">
+                        <p class="text-slate-400 italic">點擊按鈕，讓 AI 分析此樁位的應力比與控制因子。</p>
+                    </div>
+                </div>
+
+            </div>
+            <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg text-right">
+                <button onclick="closeModal()" class="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Gemini API ---
+        let userApiKey = ""; 
+
+        async function callGemini(prompt) {
+            const apiKeyInput = document.getElementById('api-key-input').value.trim();
+            const apiKey = apiKeyInput || ""; 
+            
+            if (!apiKey) {
+                alert("請先在頁面右上角輸入您的 Gemini API Key 才能使用 AI 功能！");
+                return null;
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error((await response.json()).error?.message || "API Request Failed");
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text;
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                alert("AI 分析發生錯誤: " + error.message);
+                return null;
+            }
+        }
+
+        // --- Data Variables ---
+        let analysisData = [];
+        let allowableData = [];
+        let globalResults = null;
+        let currentSF = 1.01;
+        let currentDetailIndex = -1;
+
+        // --- Data Parsing Functions ---
+
+        // Helper: Clear inputs
+        function clearAnalysis() { document.getElementById('input-analysis').value = ''; updateCounts(); }
+        function clearAllowable() { document.getElementById('input-allowable').value = ''; updateCounts(); }
+
+        // Helper: Update counts based on text
+        function updateCounts() {
+            const anaText = document.getElementById('input-analysis').value;
+            const allowText = document.getElementById('input-allowable').value;
+            
+            const anaCount = anaText.trim() ? anaText.trim().split(/\n/).length : 0;
+            const allowCount = allowText.trim() ? allowText.trim().split(/\n/).length : 0;
+
+            document.getElementById('count-analysis').textContent = `${anaCount} 筆`;
+            document.getElementById('count-allowable').textContent = `${allowCount} 筆`;
+        }
+
+        // Add listeners to textareas
+        document.getElementById('input-analysis').addEventListener('input', updateCounts);
+        document.getElementById('input-allowable').addEventListener('input', updateCounts);
+
+        function parseAnalysis(text) {
+            const lines = text.trim().split(/\n/);
+            const data = [];
+            lines.forEach((line, idx) => {
+                if(!line.trim()) return;
+                const parts = line.trim().split(/\t+/); // Split by tab or multiple spaces
+                // Allow flexible parsing (tab or space)
+                const cleanParts = line.trim().split(/[\t\s]+/); 
+
+                if (cleanParts.length < 7) return; 
+
+                // Try to parse numbers. If fail, maybe it's a header line, skip.
+                const p1 = parseFloat(cleanParts[1]);
+                if (isNaN(p1)) return; // Header detection
+
+                data.push({
+                    id: cleanParts[0].trim(),
+                    p: { long: parseFloat(cleanParts[1]), short: parseFloat(cleanParts[2]), ult: parseFloat(cleanParts[3]) },
+                    t: { long: parseFloat(cleanParts[4]), short: parseFloat(cleanParts[5]), ult: parseFloat(cleanParts[6]) }
+                });
+            });
+            return data;
+        }
+
+        function parseAllowable(text) {
+            const lines = text.trim().split(/\n/);
+            const data = [];
+            lines.forEach(line => {
+                if(!line.trim()) return;
+                const cleanParts = line.trim().split(/[\t\s]+/);
+                
+                // New Format: Size(0), Depth(1), P_L(2), P_S(3), P_U(4), T_L(5), T_S(6), T_U(7)
+                if (cleanParts.length < 8) return;
+
+                const p1 = parseFloat(cleanParts[2]);
+                if (isNaN(p1)) return; // Header detection
+
+                data.push({
+                    fullDesc: `${cleanParts[0]} (D=${cleanParts[1]}m)`,
+                    shortName: cleanParts[0],
+                    depth: cleanParts[1],
+                    p: { long: parseFloat(cleanParts[2]), short: parseFloat(cleanParts[3]), ult: parseFloat(cleanParts[4]) },
+                    t: { long: parseFloat(cleanParts[5]), short: parseFloat(cleanParts[6]), ult: parseFloat(cleanParts[7]) }
+                });
+            });
+            return data;
+        }
+
+        // --- Demo Data ---
+        function loadDemoData() {
+            const demoAnalysis = `16	1192.2	1401.1	1723.7	-59.1	-766.0	-1088.7
+17	946.5	844.9	1032.8	-183.8	-558.4	-746.2
+18	822.1	638.9	784.5	-239.9	-512.6	-658.1
+20	1150.4	760.4	820.6	-9.8	-70.2	-130.4`;
+
+            const demoAllowable = `1.2×2.5	50	3110	4316	5797	573	721	870
+1.2×2.5	51	3203	4446	5967	593	747	900
+1.2×3	50	3690	5122	6888	659	827	996
+1.2×3	51	3800	5274	7089	683	857	1032`;
+
+            document.getElementById('input-analysis').value = demoAnalysis;
+            document.getElementById('input-allowable').value = demoAllowable;
+            updateCounts();
+        }
+
+        // --- Main Process Logic ---
+        document.getElementById('btn-process').addEventListener('click', () => {
+            const analysisText = document.getElementById('input-analysis').value;
+            const allowableText = document.getElementById('input-allowable').value;
+
+            if (!analysisText.trim() || !allowableText.trim()) {
+                alert("請先貼上「分析結果」與「容許值」數據！");
+                return;
+            }
+            
+            // Parse Data
+            analysisData = parseAnalysis(analysisText);
+            allowableData = parseAllowable(allowableText);
+
+            if (analysisData.length === 0) { alert("分析結果數據格式錯誤或無有效資料，請檢查。"); return; }
+            if (allowableData.length === 0) { alert("容許值數據格式錯誤或無有效資料，請檢查。"); return; }
+
+            // Safety Factor
+            const sfInput = parseFloat(document.getElementById('safety-factor').value);
+            if (isNaN(sfInput) || sfInput < 0) {
+                alert("請輸入有效的安全係數");
+                return;
+            }
+            currentSF = sfInput;
+            document.getElementById('sf-display').textContent = `(SF: ${currentSF})`;
+
+            // Compare
+            const results = [];
+            
+            analysisData.forEach(point => {
+                const validPiles = [];
+                allowableData.forEach(pile => {
+                    const pCheck = 
+                        pile.p.long >= (point.p.long * currentSF) &&
+                        pile.p.short >= (point.p.short * currentSF) &&
+                        pile.p.ult >= (point.p.ult * currentSF);
+                    
+                    const tCheck = 
+                        (-1 * pile.t.long) <= (point.t.long * currentSF) &&
+                        (-1 * pile.t.short) <= (point.t.short * currentSF) &&
+                        (-1 * pile.t.ult) <= (point.t.ult * currentSF);
+
+                    if (pCheck && tCheck) validPiles.push(pile);
+                });
+                results.push({ point, validPiles });
+            });
+
+            globalResults = results;
+            renderTable(results);
+            setupDownload(results);
+            
+            // Reset UI
+            document.getElementById('ai-summary-content').innerHTML = '<p class="italic text-slate-400">點擊「生成報告」按鈕，讓 AI 為您撰寫本次基樁選樁的工程總結分析。</p>';
+            document.getElementById('result-section').classList.remove('hidden');
+            document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        function renderTable(results) {
+            const tbody = document.getElementById('result-body');
+            tbody.innerHTML = '';
+            results.slice(0, 100).forEach((res, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b last:border-0";
+                const hasMatch = res.validPiles.length > 0;
+                
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-mono font-bold text-blue-800">${res.point.id}</td>
+                    <td class="px-4 py-3 text-xs text-slate-500 font-mono">
+                        P: ${res.point.p.ult.toFixed(0)}<br>
+                        T: ${res.point.t.ult.toFixed(0)}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-slate-700">
+                        ${hasMatch ? res.validPiles[0].fullDesc : '<span class="text-red-400 italic">無符合樁型</span>'}
+                    </td>
+                    <td class="px-4 py-3 text-center font-bold ${hasMatch ? 'text-emerald-600' : 'text-red-500'}">
+                        ${res.validPiles.length}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        ${hasMatch 
+                            ? '<span class="px-2 py-1 text-xs rounded-full bg-emerald-100 text-emerald-800">合格</span>' 
+                            : '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">失敗</span>'}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="showDetail(${index})" class="text-indigo-600 hover:text-indigo-900 font-medium text-sm border border-indigo-200 px-3 py-1 rounded hover:bg-indigo-50">
+                            詳細數據
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showDetail(index) {
+            currentDetailIndex = index;
+            const data = globalResults[index];
+            const point = data.point;
+            const pile = data.validPiles.length > 0 ? data.validPiles[0] : null;
+
+            document.getElementById('modal-title').innerText = `點位 ${point.id} 詳細比對 (SF=${currentSF})`;
+            const content = document.getElementById('modal-content');
+            
+            let html = `
+                <div class="mb-6 bg-gray-50 p-4 rounded border border-gray-200">
+                    <h4 class="font-bold text-gray-700">檢核結果: <span class="${pile ? 'text-green-600' : 'text-red-600'} text-lg">${pile ? '✅ 合格' : '❌ 失敗'}</span></h4>
+                    <p class="text-sm text-gray-600 mt-1">選定樁型: ${pile ? pile.fullDesc : '無符合 (顯示原始值供參考)'}</p>
+                </div>
+            `;
+
+            html += `
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm text-center">
+                        <thead class="bg-gray-100 text-gray-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left">檢查項目</th>
+                                <th class="px-4 py-3">原始分析值</th>
+                                <th class="px-4 py-3 text-indigo-700 font-bold bg-indigo-50 border-x border-indigo-100">檢核需求值<br><span class="text-xs font-normal">(分析值 × ${currentSF})</span></th>
+                                <th class="px-4 py-3">樁型容許值</th>
+                                <th class="px-4 py-3">判定</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+            `;
+
+            const rows = [
+                { name: "承壓力 P (長期)", ana: point.p.long,  pile: pile ? pile.p.long : null,  type: 'P' },
+                { name: "承壓力 P (短期)", ana: point.p.short, pile: pile ? pile.p.short : null, type: 'P' },
+                { name: "承壓力 P (極限)", ana: point.p.ult,   pile: pile ? pile.p.ult : null,   type: 'P' },
+                { name: "拉拔力 T (長期)", ana: point.t.long,  pile: pile ? pile.t.long : null,  type: 'T' },
+                { name: "拉拔力 T (短期)", ana: point.t.short, pile: pile ? pile.t.short : null, type: 'T' },
+                { name: "拉拔力 T (極限)", ana: point.t.ult,   pile: pile ? pile.t.ult : null,   type: 'T' },
+            ];
+
+            rows.forEach(row => {
+                let statusHtml = "";
+                let reqValDisplay = "";
+                let pileValDisplay = "-";
+                let reqVal = row.ana * currentSF;
+
+                if (pile) {
+                    if (row.type === 'P') {
+                        let pass = row.pile >= reqVal;
+                        statusHtml = pass ? '<span class="text-green-600 font-bold">✓ 合格</span>' : '<span class="text-red-600 font-bold">✗ 失敗</span>';
+                        pileValDisplay = `<span class="font-mono text-blue-600">${row.pile.toFixed(2)}</span>`;
+                        reqValDisplay = `<span class="font-mono text-indigo-700 font-bold">${reqVal.toFixed(2)}</span>`;
+                    } else {
+                        let pileNeg = -1 * row.pile;
+                        let pass = pileNeg <= reqVal;
+                        statusHtml = pass ? '<span class="text-green-600 font-bold">✓ 合格</span>' : '<span class="text-red-600 font-bold">✗ 失敗</span>';
+                        pileValDisplay = `<span class="font-mono text-blue-600">${pileNeg.toFixed(2)}</span>`;
+                        reqValDisplay = `<span class="font-mono text-indigo-700 font-bold">${reqVal.toFixed(2)}</span>`;
+                    }
+                } else {
+                    statusHtml = '<span class="text-gray-400">-</span>';
+                    reqValDisplay = reqVal.toFixed(2);
+                }
+
+                html += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-left font-medium text-gray-800">${row.name}</td>
+                        <td class="px-4 py-3 font-mono text-gray-500">${row.ana.toFixed(2)}</td>
+                        <td class="px-4 py-3 font-mono bg-indigo-50 border-x border-indigo-100 text-indigo-800 font-semibold">${reqValDisplay}</td>
+                        <td class="px-4 py-3">${pileValDisplay}</td>
+                        <td class="px-4 py-3">${statusHtml}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table></div>`;
+            if (!pile) html += `<div class="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded">此點位在加入安全係數 ${currentSF} 後，無法找到符合的樁型。</div>`;
+
+            content.innerHTML = html;
+
+            document.getElementById('ai-insight-block').classList.remove('hidden');
+            document.getElementById('ai-detail-result').innerHTML = '<p class="text-slate-400 italic">點擊按鈕，讓 AI 分析此樁位的應力比與控制因子。</p>';
+            
+            const btnDetail = document.getElementById('btn-ai-detail');
+            if (pile) {
+                btnDetail.disabled = false;
+                btnDetail.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnDetail.disabled = true;
+                btnDetail.classList.add('opacity-50', 'cursor-not-allowed');
+                document.getElementById('ai-detail-result').innerHTML = '<p class="text-red-400 italic">無選定樁型，無法進行詳細 AI 分析。</p>';
+            }
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+            document.getElementById('detail-modal').classList.add('flex');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+            document.getElementById('detail-modal').classList.remove('flex');
+            document.body.classList.remove('modal-open');
+        }
+
+        // --- License Modal Functions ---
+        function showLicense() {
+            const modal = document.getElementById('license-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        function closeLicense() {
+            const modal = document.getElementById('license-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // --- AI Features ---
+        document.getElementById('btn-ai-summary').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-ai-summary');
+            const contentDiv = document.getElementById('ai-summary-content');
+
+            if (!globalResults) return;
+
+            const total = globalResults.length;
+            const passed = globalResults.filter(r => r.validPiles.length > 0).length;
+            const failed = total - passed;
+            
+            const pileCounts = {};
+            globalResults.forEach(r => {
+                if(r.validPiles.length > 0) {
+                    const name = r.validPiles[0].shortName;
+                    pileCounts[name] = (pileCounts[name] || 0) + 1;
+                }
+            });
+            let commonPile = "無";
+            let maxCount = 0;
+            for(const [name, count] of Object.entries(pileCounts)){
+                if(count > maxCount) { maxCount = count; commonPile = name; }
+            }
+
+            const prompt = `
+                你是一位專業的土木大地工程師。請根據以下「基樁選樁分析結果」撰寫一段繁體中文的工程總結報告 (Executive Summary)。
+                
+                數據如下：
+                - 分析點位總數：${total}
+                - 合格點位數：${passed}
+                - 失敗點位數：${failed}
+                - 設定之安全係數 (SF)：${currentSF}
+                - 最常被選用的建議樁型：${commonPile}
+
+                撰寫要求：
+                1. 語氣專業、客觀。
+                2. 總結整體的合格率情況。
+                3. 提及安全係數的設定對結果的影響。
+                4. 針對最常選用的樁型做簡單描述。
+            `;
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="sparkle-loading mr-2"></div> 生成中...';
+            contentDiv.innerHTML = '<div class="animate-pulse flex space-x-4"><div class="flex-1 space-y-4 py-1"><div class="h-4 bg-slate-200 rounded w-3/4"></div><div class="h-4 bg-slate-200 rounded"></div></div></div>';
+
+            const resultText = await callGemini(prompt);
+
+            btn.disabled = false;
+            btn.innerHTML = '<span class="mr-1">✨</span> 重新生成';
+            
+            if (resultText) contentDiv.innerHTML = marked.parse(resultText);
+            else contentDiv.innerHTML = '<p class="text-red-500">生成失敗，請檢查 API Key。</p>';
+        });
+
+        document.getElementById('btn-ai-detail').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-ai-detail');
+            const resultDiv = document.getElementById('ai-detail-result');
+
+            if (currentDetailIndex === -1 || !globalResults[currentDetailIndex]) return;
+
+            const data = globalResults[currentDetailIndex];
+            const p = data.point;
+            const pile = data.validPiles[0];
+            
+            const reqP = p.p.ult * currentSF;
+            const ratioP = (reqP / pile.p.ult).toFixed(2);
+            
+            const reqT = p.t.ult * currentSF; 
+            const pileT = -1 * pile.t.ult; 
+            const ratioT = (Math.abs(reqT) / Math.abs(pileT)).toFixed(2);
+
+            const prompt = `
+                你是一位專業的土木工程師。請針對這一個基樁點位 (ID: ${p.id}) 的選樁結果進行簡短的應力分析。
+
+                數據環境：
+                - 安全係數 (SF): ${currentSF}
+                
+                極限承壓力 (Compression):
+                - 需求值 (含SF): ${reqP.toFixed(1)}
+                - 樁容許值: ${pile.p.ult.toFixed(1)}
+                - 應力比 (D/C Ratio): ${ratioP}
+
+                極限拉拔力 (Tension):
+                - 需求值 (含SF): ${reqT.toFixed(1)} (負值代表拉力)
+                - 樁容許值: ${pileT.toFixed(1)} (負值代表拉力)
+                - 應力比 (D/C Ratio): ${ratioT}
+
+                請分析：
+                1. 哪一個力量 (承壓或拉拔) 是此樁的控制因子？
+                2. 安全餘裕 (Margin) 是否充足？
+                3. 給出一句簡短的工程評語。
+            `;
+
+            btn.disabled = true;
+            btn.textContent = '分析中...';
+            resultDiv.innerHTML = '<div class="animate-pulse h-4 bg-indigo-200 rounded w-3/4"></div>';
+
+            const resultText = await callGemini(prompt);
+
+            btn.disabled = false;
+            btn.textContent = '重新分析';
+
+            if (resultText) resultDiv.innerHTML = marked.parse(resultText);
+            else resultDiv.innerHTML = '<p class="text-red-500">分析失敗。</p>';
+        });
+
+        function setupDownload(results) {
+            const btn = document.getElementById('btn-download');
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            newBtn.addEventListener('click', () => {
+                let csv = "\uFEFF"; 
+                csv += `安全係數設定: ${currentSF}\n`;
+                csv += "點位ID,分析P_長期,分析P_短期,分析P_極限,分析T_長期,分析T_短期,分析T_極限,需求P_長期,需求P_短期,需求P_極限,需求T_長期,需求T_短期,需求T_極限,判定結果,符合樁型數,選定樁型規格,樁容許P_長期,樁容許P_短期,樁容許P_極限,樁容許T_長期(轉負),樁容許T_短期(轉負),樁容許T_極限(轉負),所有符合樁型清單\n";
+
+                results.forEach(res => {
+                    const p = res.point;
+                    const pile = res.validPiles.length > 0 ? res.validPiles[0] : null;
+                    const status = pile ? "合格" : "不合格";
+                    const count = res.validPiles.length;
+                    const safeName = pile ? `"${pile.fullDesc.replace(/"/g, '""')}"` : "";
+                    const safeAll = `"${res.validPiles.map(x=>x.fullDesc).join('; ').replace(/"/g, '""')}"`;
+
+                    let row = `${p.id},${p.p.long},${p.p.short},${p.p.ult},${p.t.long},${p.t.short},${p.t.ult},`;
+                    row += `${(p.p.long*currentSF).toFixed(2)},${(p.p.short*currentSF).toFixed(2)},${(p.p.ult*currentSF).toFixed(2)},`;
+                    row += `${(p.t.long*currentSF).toFixed(2)},${(p.t.short*currentSF).toFixed(2)},${(p.t.ult*currentSF).toFixed(2)},`;
+                    row += `${status},${count},${safeName},`;
+                    
+                    if (pile) {
+                        row += `${pile.p.long},${pile.p.short},${pile.p.ult},`;
+                        row += `${-1*pile.t.long},${-1*pile.t.short},${-1*pile.t.ult},`;
+                    } else {
+                        row += ",,,,,,"; 
+                    }
+                    row += safeAll;
+                    csv += row + "\n";
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `基樁選樁報告_SF${currentSF}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+
