@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雙強度 PMM 分析儀 (整合版)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <!-- XLSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body { font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif; }
+        
+        /* [Modified] Fix Aspect Ratio: Removed fixed height, added max-width and centering */
+        .canvas-container { 
+            position: relative; 
+            width: 100%; 
+            max-width: 550px; /* Limit size for better view */
+            margin: 0 auto;   /* Center horizontally */
+            border: 1px solid #e5e7eb; 
+            background: #fff; 
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* [Modified] Fix Aspect Ratio: height auto respects the width="800" height="800" ratio (1:1) */
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: auto; 
+        }
+
+        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: bold; }
+        input[type="number"] { width: 100%; text-align: right; }
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-left: 8px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .result-safe { color: #10B981; font-weight: bold; } 
+        .result-fail { color: #EF4444; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-indigo-900 text-white p-4 shadow-md z-10 flex-none">
+        <div class="container mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    雙強度 PMM 分析儀 (整合版)
+                </h1>
+                <p class="text-xs opacity-80 mt-1">Base: PMM_Dual_Phi_Resolution.html | Opt: Symmetry (0-90°)</p>
+            </div>
+            <div class="text-right text-xs">
+                <div>核心演算法：完全保留原版 (v5.1)</div>
+                <div>整合功能：強度檢核 / 向量查詢 / 對稱加速</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Sidebar: Controls -->
+        <aside class="w-96 bg-white border-r shadow-lg overflow-y-auto flex-none flex flex-col z-10">
+            <div class="p-4 space-y-5">
+                
+                <!-- Section 1: Materials -->
+                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                    <h3 class="font-bold text-indigo-800 mb-2 border-b border-indigo-200 pb-1 text-sm">1. 材料性質 (Materials)</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-gray-600 mb-1">外殼強度 fc_out</label>
+                                <div class="flex items-center">
+                                    <input type="number" id="fc_out" value="280" class="border rounded px-2 py-1 w-full" oninput="updateParams()">
+                                </div>
+                                <div id="beta1_out_display" class="text-[10px] text-blue-600 mt-0.5">β1: 0.85</div>
+                            </div>
+                            <div>
+                                <label class="block text-gray-600 mb-1">核心強度 fc_in</label>
+                                <div class="flex items-center">
+                                    <input type="number" id="fc_in" value="560" class="border rounded px-2 py-1 w-full" oninput="updateParams()">
+                                </div>
+                                <div id="beta1_in_display" class="text-[10px] text-red-600 mt-0.5">β1: 0.65</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-gray-600 mb-1">鋼筋降伏 fy</label>
+                                <input type="number" id="fy" value="4200" class="border rounded px-2 py-1 w-full" oninput="updateParams()">
+                            </div>
+                            <div>
+                                <label class="block text-gray-600 mb-1">彈性模數 Es</label>
+                                <input type="number" id="Es" value="2040000" class="border rounded px-2 py-1 w-full bg-gray-50" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Geometry -->
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <h3 class="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-1 text-sm">2. 斷面幾何 (Geometry)</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-gray-600 mb-1">寬度 Bx (cm)</label>
+                                <input type="number" id="width_B" value="80" class="border rounded px-2 py-1" oninput="drawSection()">
+                            </div>
+                            <div>
+                                <label class="block text-gray-600 mb-1">深度 Hy (cm)</label>
+                                <input type="number" id="depth_H" value="80" class="border rounded px-2 py-1" oninput="drawSection()">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 mb-1">保護層 cc (至箍筋外)</label>
+                            <input type="number" id="cover" value="4" class="border rounded px-2 py-1 w-full" oninput="drawSection()">
+                        </div>
+                        
+                        <!-- Core Definition -->
+                        <div class="mt-2 pt-2 border-t border-gray-200">
+                            <label class="block text-gray-700 font-bold mb-1">核心區域 (Core)</label>
+                            <div class="flex items-center gap-2 mb-1">
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="coreType" value="inset" checked onchange="toggleCoreInput()" class="mr-1">內縮(Inset)</label>
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="coreType" value="explicit" onchange="toggleCoreInput()" class="mr-1">指定(Fixed)</label>
+                            </div>
+                            
+                            <div id="coreInputInset" class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-gray-600 mb-1">X向 Gap X</label>
+                                    <input type="number" id="coreGapX" value="10" class="border rounded px-2 py-1" oninput="drawSection()">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600 mb-1">Y向 Gap Y</label>
+                                    <input type="number" id="coreGapY" value="10" class="border rounded px-2 py-1" oninput="drawSection()">
+                                </div>
+                            </div>
+                            <div id="coreInputExplicit" class="grid grid-cols-2 gap-2 hidden">
+                                <div><label class="block text-gray-600 mb-1">核心寬 b</label><input type="number" id="coreB" value="60" class="border rounded px-2 py-1" oninput="drawSection()"></div>
+                                <div><label class="block text-gray-600 mb-1">核心高 h</label><input type="number" id="coreH" value="60" class="border rounded px-2 py-1" oninput="drawSection()"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Rebar -->
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <h3 class="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-1 text-sm">3. 鋼筋配置 (Rebar)</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="block text-gray-600 mb-1">X向 支數 Nx</label><input type="number" id="nx" value="4" class="border rounded px-2 py-1" oninput="drawSection()"></div>
+                            <div><label class="block text-gray-600 mb-1">Y向 支數 Ny</label><input type="number" id="ny" value="4" class="border rounded px-2 py-1" oninput="drawSection()"></div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 mb-1">鋼筋號數</label>
+                            <select id="barSize" class="border rounded px-2 py-1 w-full bg-white" onchange="drawSection()">
+                                <option value="1.986">D16 (#5)</option>
+                                <option value="2.865">D19 (#6)</option>
+                                <option value="3.871">D22 (#7)</option>
+                                <option value="5.067" selected>D25 (#8)</option>
+                                <option value="6.469">D29 (#9)</option>
+                                <option value="7.942">D32 (#10)</option>
+                                <option value="9.566">D36 (#11)</option>
+                            </select>
+                        </div>
+                        <div class="text-[10px] text-gray-500 mt-1 text-right">
+                            As: <span id="totalAs" class="font-bold text-blue-600">--</span> cm² (<span id="rho" class="font-bold">--</span>%)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Resolution -->
+                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                    <h3 class="font-bold text-indigo-800 mb-2 border-b border-indigo-200 pb-1 text-sm">4. 分析解析度 (Resolution)</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-gray-600 mb-1" title="360度切多少份">角度數 (N_Ang)</label>
+                                <input type="number" id="numAngles" value="36" class="border rounded px-2 py-1 w-full focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-gray-600 mb-1" title="單一曲線上計算多少點">曲線點數 (N_Pts)</label>
+                                <input type="number" id="numPoints" value="80" class="border rounded px-2 py-1 w-full focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        
+                        <!-- [NEW] Symmetry Checkbox -->
+                        <div class="mt-2 pt-1 border-t border-indigo-200">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="chk_symmetry" checked class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                                <span class="font-bold text-indigo-700">假設雙軸對稱 (0-90° 加速)</span>
+                            </label>
+                            <div class="text-[10px] text-gray-500 ml-6">
+                                *計算 1/4 點位後自動鏡射補全，速度提升 4 倍。
+                            </div>
+                        </div>
+
+                        <div class="text-[10px] text-gray-500 mt-1">
+                            *點位採「三段式權重」：<br>
+                            中間外凸區密集 (70%)，兩端稀疏。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button onclick="calculatePMM()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded shadow transition transform active:scale-95 flex justify-center items-center gap-2">
+                    <span id="btnText">執行高精度分析</span>
+                    <svg id="btnSpinner" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+                
+                <button onclick="exportExcel()" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm mt-2">
+                    匯出 Excel 報告
+                </button>
+
+            </div>
+        </aside>
+
+        <!-- Right Content: Visualization -->
+        <main class="flex-1 flex flex-col min-w-0 bg-white">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 bg-gray-50 px-4 overflow-x-auto">
+                <button class="tab-btn px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-800 active" onclick="switchTab('section')">斷面檢視</button>
+                <button class="tab-btn px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-800" onclick="switchTab('pmm')">PMM 曲面 (3D)</button>
+                <button class="tab-btn px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-800" onclick="switchTab('2d-curve')">PM 曲線 (2D)</button>
+                <button class="tab-btn px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-800" onclick="switchTab('report')">詳細數據</button>
+                <button class="tab-btn px-6 py-3 text-sm font-medium text-purple-600 hover:text-purple-800 border-b-2 border-transparent hover:border-purple-300" onclick="switchTab('tools')">進階檢核 (Tools)</button>
+            </div>
+
+            <div class="flex-1 overflow-auto p-4 relative">
+                
+                <!-- Tab 1: Section View -->
+                <div id="tab-section" class="h-full flex flex-col items-center justify-center">
+                    <!-- Note: canvas-container class handles the aspect ratio via CSS -->
+                    <div class="canvas-container">
+                        <canvas id="sectionCanvas" width="800" height="800"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab 2: PMM 3D Plot -->
+                <div id="tab-pmm" class="h-full hidden relative">
+                    <div class="absolute top-2 left-2 z-10 bg-white/90 p-2 rounded border shadow-sm text-xs">
+                        <span class="font-bold mr-2">顯示模式:</span>
+                        <label class="mr-2 cursor-pointer"><input type="radio" name="viewMode3D" value="nominal" checked onclick="plot3D()"> Pn (標稱)</label>
+                        <label class="cursor-pointer"><input type="radio" name="viewMode3D" value="design" onclick="plot3D()"> φPn (設計)</label>
+                    </div>
+                    <div id="plotly3d" class="w-full h-full"></div>
+                </div>
+
+                <!-- Tab 3: 2D Curve -->
+                <div id="tab-2d-curve" class="h-full hidden flex flex-col p-2">
+                    <div class="flex justify-between bg-gray-50 p-2 rounded border-b mb-2">
+                         <div class="flex gap-4 items-center">
+                             <span class="text-sm font-bold text-gray-700">彎矩方向:</span>
+                             <label class="flex items-center gap-1 cursor-pointer hover:bg-white px-2 py-1 rounded">
+                                <input type="radio" name="angleView" value="0" checked onclick="update2DPlot()"> 0° (Mx)
+                             </label>
+                             <label class="flex items-center gap-1 cursor-pointer hover:bg-white px-2 py-1 rounded">
+                                <input type="radio" name="angleView" value="90" onclick="update2DPlot()"> 90° (My)
+                             </label>
+                             <label class="flex items-center gap-1 cursor-pointer hover:bg-white px-2 py-1 rounded">
+                                <input type="radio" name="angleView" value="45" onclick="update2DPlot()"> 45°
+                             </label>
+                         </div>
+                         <div class="flex gap-2 items-center text-sm">
+                            <span class="font-bold text-gray-700">強度:</span>
+                            <label class="cursor-pointer text-blue-600 font-semibold"><input type="radio" name="viewMode2D" value="nominal" checked onclick="update2DPlot()"> Pn</label>
+                            <label class="cursor-pointer text-green-600 font-semibold"><input type="radio" name="viewMode2D" value="design" onclick="update2DPlot()"> φPn</label>
+                         </div>
+                    </div>
+                    <div id="plotly2d" class="w-full flex-1"></div>
+                </div>
+
+                <!-- Tab 4: Report -->
+                <div id="tab-report" class="h-full hidden overflow-auto">
+                    <div class="prose max-w-none">
+                        <h3 class="text-lg font-bold mb-2">計算結果報表</h3>
+                        <div class="bg-gray-100 p-4 rounded mb-4 text-sm">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p><strong>Methodology:</strong> Multi-Polygon Clipping (Exact)</p>
+                                    <p><strong>Resolution:</strong> N_Ang=<span id="rep_ang">--</span>, N_Pts=<span id="rep_pts">--</span></p>
+                                    <p><strong>Sampling:</strong> 3-Zone Weighted (70% Knee)</p>
+                                </div>
+                                <div>
+                                    <p><strong>ACI 318-19:</strong> φ=0.65~0.90</p>
+                                    <p><strong>Po (Nominal):</strong> <span id="r_po">--</span> tf</p>
+                                    <p><strong>Pn_max (Limit):</strong> <span id="r_pnmax">--</span> tf</p>
+                                    <p><strong>φPn_max (Cap):</strong> <span id="r_phipnmax" class="text-red-600 font-bold">--</span> tf</p>
+                                </div>
+                            </div>
+                        </div>
+                        <table class="min-w-full text-sm text-left border">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th class="p-2 border">Angle / C</th>
+                                    <th class="p-2 border">Pn (tf)</th>
+                                    <th class="p-2 border">Mnx (tf-m)</th>
+                                    <th class="p-2 border">Mny (tf-m)</th>
+                                    <th class="p-2 border text-blue-600">εt</th>
+                                    <th class="p-2 border text-blue-600">φ</th>
+                                    <th class="p-2 border bg-green-50">φPn (tf)</th>
+                                    <th class="p-2 border bg-green-50">φMn_res</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportTableBody">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Tools (NEW) -->
+                <div id="tab-tools" class="h-full hidden overflow-auto bg-gray-50 p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">進階檢核與查詢工具</h2>
+                    <p class="text-sm text-gray-500 mb-6">以下功能直接基於已計算的 PMM 曲面數據進行分析。請先點擊左側「執行高精度分析」以產生數據。</p>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        
+                        <!-- Tool 1: Strength Check -->
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                            <h3 class="text-lg font-bold text-indigo-700 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                1. 強度檢核 (Strength Check)
+                            </h3>
+                            <div class="grid grid-cols-3 gap-3 mb-4">
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Pu (tf)</label><input type="number" id="check_pu" value="150" class="border rounded px-2 py-1 w-full"></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Mux (tf-m)</label><input type="number" id="check_mux" value="10" class="border rounded px-2 py-1 w-full"></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Muy (tf-m)</label><input type="number" id="check_muy" value="8" class="border rounded px-2 py-1 w-full"></div>
+                            </div>
+                            <button onclick="toolCheckStrength()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded mb-4">進行檢核</button>
+                            
+                            <div id="res_check" class="hidden bg-gray-50 p-3 rounded border text-sm space-y-2">
+                                <div class="grid grid-cols-3 gap-2 text-xs text-gray-600 border-b pb-2">
+                                    <div class="text-center">Cr1 (Bresler)<br><span id="val_cr1" class="font-mono text-black font-bold text-sm">--</span></div>
+                                    <div class="text-center">Cr2 (Vector M)<br><span id="val_cr2" class="font-mono text-black font-bold text-sm">--</span></div>
+                                    <div class="text-center">Cr3 (Vector 3D)<br><span id="val_cr3" class="font-mono text-black font-bold text-sm">--</span></div>
+                                </div>
+                                <div class="flex justify-between items-center pt-1">
+                                    <span class="text-gray-800 font-bold">最終容量比 (Max D/C):</span>
+                                    <span id="val_dc" class="font-mono font-bold text-xl text-indigo-800">--</span>
+                                </div>
+                                <div class="text-center pt-1"><span id="val_status" class="px-3 py-1 rounded text-white text-sm font-bold">--</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Tool 2: Vector Query -->
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                            <h3 class="text-lg font-bold text-cyan-700 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                2. 標稱強度點查詢 (依向量)
+                            </h3>
+                            <p class="text-xs text-gray-500 mb-3">輸入外力向量 (Pu, Mux, Muy)，尋找同方向的 Pn 點。</p>
+                            <div class="grid grid-cols-3 gap-3 mb-4">
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Vec Pu</label><input type="number" id="vec_pu" value="150" class="border rounded px-2 py-1 w-full"></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Vec Mux</label><input type="number" id="vec_mux" value="10" class="border rounded px-2 py-1 w-full"></div>
+                                <div><label class="block text-xs font-bold text-gray-500 mb-1">Vec Muy</label><input type="number" id="vec_muy" value="8" class="border rounded px-2 py-1 w-full"></div>
+                            </div>
+                            <button onclick="toolQueryVector()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 rounded mb-4">查詢標稱點</button>
+                            
+                            <div id="res_vec" class="hidden bg-gray-50 p-3 rounded border text-sm">
+                                <div class="grid grid-cols-3 gap-2 text-center">
+                                    <div><div class="text-xs text-gray-500">Pn (tf)</div><div id="val_vec_pn" class="font-mono font-bold text-blue-600">--</div></div>
+                                    <div><div class="text-xs text-gray-500">Mnx (tf-m)</div><div id="val_vec_mx" class="font-mono font-bold text-blue-600">--</div></div>
+                                    <div><div class="text-xs text-gray-500">Mny (tf-m)</div><div id="val_vec_my" class="font-mono font-bold text-blue-600">--</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tool 3: Axis Moment Query -->
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200 xl:col-span-2">
+                            <h3 class="text-lg font-bold text-teal-700 mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                                3. 主軸標稱彎矩查詢 (依 Pu)
+                            </h3>
+                            <div class="flex items-end gap-4 mb-4">
+                                <div class="w-1/3">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">給定設計軸力 Pu (tf)</label>
+                                    <input type="number" id="axis_pu" value="150" class="border rounded px-2 py-1 w-full">
+                                </div>
+                                <button onclick="toolQueryAxis()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-6 rounded">查詢主軸彎矩</button>
+                            </div>
+                            
+                            <div id="res_axis" class="hidden bg-gray-50 p-4 rounded border text-sm">
+                                <div class="grid grid-cols-2 gap-8">
+                                    <div class="flex justify-between items-center border-b pb-2">
+                                        <span class="text-gray-600">Mnx (繞 X 軸容量):</span>
+                                        <span id="val_axis_mx" class="font-mono font-bold text-teal-700 text-lg">--</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-b pb-2">
+                                        <span class="text-gray-600">Mny (繞 Y 軸容量):</span>
+                                        <span id="val_axis_my" class="font-mono font-bold text-teal-700 text-lg">--</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">*使用線性插值法於 Angle=90° (Mnx) 與 Angle=0° (Mny) 之 PMM 數據。</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Logic Script -->
+    <script>
+        // --- Global State ---
+        let sectionData = {};
+        let pmmResults = []; 
+        let isCalculating = false;
+        let pmmPnMax = 0; // Store PnMax for Checks
+
+        window.onload = function() {
+            updateParams();
+            drawSection();
+        };
+
+        function toggleCoreInput() {
+            const type = document.querySelector('input[name="coreType"]:checked').value;
+            const inset = document.getElementById('coreInputInset');
+            const expl = document.getElementById('coreInputExplicit');
+            if (type === 'inset') {
+                inset.classList.remove('hidden'); inset.classList.add('grid');
+                expl.classList.add('hidden'); expl.classList.remove('grid');
+            } else {
+                inset.classList.add('hidden'); inset.classList.remove('grid');
+                expl.classList.remove('hidden'); expl.classList.add('grid');
+            }
+            drawSection();
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('[onclick="switchTab(\'' + tabName + '\')"]').forEach(b => b.classList.add('active'));
+            
+            ['section', 'pmm', '2d-curve', 'report', 'tools'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+            });
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+            if(tabName === 'pmm' && pmmResults.length > 0) plot3D();
+            if(tabName === '2d-curve' && pmmResults.length > 0) update2DPlot();
+        }
+
+        // --- Core Algorithm: Beta1 & Phi Calculation (ACI 318-19) ---
+        function calculateBeta1(fc_kgf) {
+            const fc_MPa = fc_kgf * 0.0980665;
+            if (fc_kgf <= 280) return 0.85;
+            else if (fc_kgf < 550) return 0.85 - 0.05 * (fc_kgf - 280) / 70;
+            else return 0.65;
+        }
+
+        function calculatePhi(epsilon_t, fy_kgf, Es_kgf) {
+            const epsilon_ty = fy_kgf / Es_kgf;
+            if (epsilon_t <= epsilon_ty) return 0.65;
+            else if (epsilon_t >= 0.005) return 0.90;
+            else return 0.65 + 0.25 * ((epsilon_t - epsilon_ty) / (0.005 - epsilon_ty));
+        }
+
+        function updateParams() {
+            const fc_out = parseFloat(document.getElementById('fc_out').value) || 280;
+            const fc_in = parseFloat(document.getElementById('fc_in').value) || 560;
+            const b1_out = calculateBeta1(fc_out);
+            const b1_in = calculateBeta1(fc_in);
+            document.getElementById('beta1_out_display').textContent = `β1: ${b1_out.toFixed(3)}`;
+            document.getElementById('beta1_in_display').textContent = `β1: ${b1_in.toFixed(3)}`;
+        }
+
+        // --- Geometry & Drawing ---
+        function getSectionProperties() {
+            const B = parseFloat(document.getElementById('width_B').value);
+            const H = parseFloat(document.getElementById('depth_H').value);
+            const cover = parseFloat(document.getElementById('cover').value);
+            const fc_out = parseFloat(document.getElementById('fc_out').value);
+            const fc_in = parseFloat(document.getElementById('fc_in').value);
+            const fy = parseFloat(document.getElementById('fy').value);
+            const Es = parseFloat(document.getElementById('Es').value);
+            
+            let coreB, coreH;
+            const coreType = document.querySelector('input[name="coreType"]:checked').value;
+            if (coreType === 'inset') {
+                const gapX = parseFloat(document.getElementById('coreGapX').value);
+                const gapY = parseFloat(document.getElementById('coreGapY').value);
+                coreB = Math.max(0, B - 2 * gapX);
+                coreH = Math.max(0, H - 2 * gapY);
+            } else {
+                coreB = parseFloat(document.getElementById('coreB').value);
+                coreH = parseFloat(document.getElementById('coreH').value);
+            }
+
+            const nx = parseInt(document.getElementById('nx').value);
+            const ny = parseInt(document.getElementById('ny').value);
+            const barArea = parseFloat(document.getElementById('barSize').value);
+            const mainDia = Math.sqrt(barArea * 4 / Math.PI);
+            const d_prime = cover + 1.0 + mainDia/2;
+
+            const x_start = -B/2 + d_prime;
+            const x_end = B/2 - d_prime;
+            const y_start = -H/2 + d_prime;
+            const y_end = H/2 - d_prime;
+
+            const rebars = [];
+            if (nx > 1) {
+                const dx = (x_end - x_start) / (nx - 1);
+                for (let i = 0; i < nx; i++) {
+                    rebars.push({ x: x_start + i * dx, y: y_end, A: barArea });
+                    rebars.push({ x: x_start + i * dx, y: y_start, A: barArea });
+                }
+            }
+            if (ny > 2) {
+                const dy = (y_end - y_start) / (ny - 1);
+                for (let j = 1; j < ny - 1; j++) {
+                    rebars.push({ x: x_start, y: y_start + j * dy, A: barArea });
+                    rebars.push({ x: x_end, y: y_start + j * dy, A: barArea });
+                }
+            }
+
+            const totalAs = rebars.reduce((sum, r) => sum + r.A, 0);
+            const rho = (totalAs / (B * H)) * 100;
+            document.getElementById('totalAs').textContent = totalAs.toFixed(2);
+            document.getElementById('rho').textContent = rho.toFixed(2);
+
+            return { B, H, coreB, coreH, fc_out, fc_in, fy, Es, rebars, beta1_out: calculateBeta1(fc_out), beta1_in: calculateBeta1(fc_in) };
+        }
+
+        function drawSection() {
+            const props = getSectionProperties();
+            const canvas = document.getElementById('sectionCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Increase margin for labels
+            const maxDim = Math.max(props.B, props.H) * 1.6; 
+            const scale = Math.min(w, h) / maxDim;
+            const cx = w / 2;
+            const cy = h / 2;
+
+            function toCanvas(x, y) { return { x: cx + x * scale, y: cy - y * scale }; }
+
+            // --- 1. Axes (Background) ---
+            ctx.strokeStyle = '#94a3b8'; // Slate-400
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            
+            // X Axis
+            ctx.beginPath();
+            ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+            ctx.stroke();
+            // Y Axis
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+            ctx.stroke();
+            
+            ctx.setLineDash([]);
+            
+            // Axis Labels
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#64748b'; // Slate-500
+            ctx.textAlign = 'right'; ctx.fillText('X', w - 10, cy - 10);
+            ctx.textAlign = 'left';  ctx.fillText('Y', cx + 10, 20);
+
+            // --- 2. Shell ---
+            ctx.fillStyle = '#eff6ff'; ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.rect(cx - props.B/2*scale, cy - props.H/2*scale, props.B*scale, props.H*scale);
+            ctx.fill(); ctx.stroke();
+
+            // --- 3. Core ---
+            if (props.coreB > 0 && props.coreH > 0) {
+                ctx.fillStyle = '#fef2f2'; ctx.strokeStyle = '#dc2626'; ctx.setLineDash([5, 5]);
+                ctx.beginPath(); ctx.rect(cx - props.coreB/2*scale, cy - props.coreH/2*scale, props.coreB*scale, props.coreH*scale);
+                ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            // --- 4. Rebars ---
+            ctx.fillStyle = '#000';
+            props.rebars.forEach(bar => {
+                const pos = toCanvas(bar.x, bar.y);
+                ctx.beginPath();
+                const r = Math.sqrt(bar.A/Math.PI) * scale * 0.8;
+                ctx.arc(pos.x, pos.y, Math.max(r, 2), 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // --- 5. Dimensions ---
+            ctx.strokeStyle = '#334155'; // Slate-700
+            ctx.fillStyle = '#334155';
+            ctx.lineWidth = 1.5;
+            ctx.font = '14px Arial';
+            
+            const offset = 40; // Pixel offset for dimension lines
+            
+            // Draw B Dimension (Bottom)
+            const yDim = cy + props.H/2*scale + offset;
+            const xLeft = cx - props.B/2*scale;
+            const xRight = cx + props.B/2*scale;
+            
+            ctx.beginPath();
+            ctx.moveTo(xLeft, yDim); ctx.lineTo(xRight, yDim); // Line
+            // Ticks
+            ctx.moveTo(xLeft, yDim - 5); ctx.lineTo(xLeft, yDim + 5);
+            ctx.moveTo(xRight, yDim - 5); ctx.lineTo(xRight, yDim + 5);
+            // Connect to object (light lines)
+            ctx.moveTo(xLeft, cy + props.H/2*scale + 5); ctx.lineTo(xLeft, yDim - 5); // Extension line left
+            ctx.moveTo(xRight, cy + props.H/2*scale + 5); ctx.lineTo(xRight, yDim - 5); // Extension line right
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`B = ${props.B} cm`, cx, yDim + 5);
+
+            // Draw H Dimension (Right)
+            const xDim = cx + props.B/2*scale + offset;
+            const yTop = cy - props.H/2*scale;
+            const yBottom = cy + props.H/2*scale;
+
+            ctx.beginPath();
+            ctx.moveTo(xDim, yTop); ctx.lineTo(xDim, yBottom); // Line
+            // Ticks
+            ctx.moveTo(xDim - 5, yTop); ctx.lineTo(xDim + 5, yTop);
+            ctx.moveTo(xDim - 5, yBottom); ctx.lineTo(xDim + 5, yBottom);
+            // Connect
+            ctx.moveTo(cx + props.B/2*scale + 5, yTop); ctx.lineTo(xDim - 5, yTop);
+            ctx.moveTo(cx + props.B/2*scale + 5, yBottom); ctx.lineTo(xDim - 5, yBottom);
+            ctx.stroke();
+
+            // Rotated Text for H
+            ctx.save();
+            ctx.translate(xDim + 15, cy);
+            ctx.rotate(Math.PI/2);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(`H = ${props.H} cm`, 0, 0);
+            ctx.restore();
+        }
+
+        // --- EXACT ALGORITHM: Polygon Clipping ---
+        function clipPolygon(vertices, nx, ny, d) {
+            let newVertices = [];
+            for (let i = 0; i < vertices.length; i++) {
+                let k = (i + 1) % vertices.length;
+                let v1 = vertices[i];
+                let v2 = vertices[k];
+                let dist1 = nx * v1.x + ny * v1.y - d;
+                let dist2 = nx * v2.x + ny * v2.y - d;
+
+                if (dist1 >= 0 && dist2 >= 0) newVertices.push(v2);
+                else if (dist1 >= 0 && dist2 < 0) {
+                    let t = dist1 / (dist1 - dist2);
+                    newVertices.push({ x: v1.x + t * (v2.x - v1.x), y: v1.y + t * (v2.y - v1.y) });
+                }
+                else if (dist1 < 0 && dist2 >= 0) {
+                    let t = dist1 / (dist1 - dist2);
+                    newVertices.push({ x: v1.x + t * (v2.x - v1.x), y: v1.y + t * (v2.y - v1.y) });
+                    newVertices.push(v2);
+                }
+            }
+            return newVertices;
+        }
+
+        function getPolygonProperties(vertices) {
+            let A = 0, Cx = 0, Cy = 0;
+            if (vertices.length < 3) return { A: 0, Cx: 0, Cy: 0 };
+            for (let i = 0; i < vertices.length; i++) {
+                let j = (i + 1) % vertices.length;
+                let cross = vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y;
+                A += cross;
+                Cx += (vertices[i].x + vertices[j].x) * cross;
+                Cy += (vertices[i].y + vertices[j].y) * cross;
+            }
+            A = A / 2;
+            if (A === 0) return { A: 0, Cx: 0, Cy: 0 };
+            return { A: Math.abs(A), Cx: Cx / (6 * A), Cy: Cy / (6 * A) };
+        }
+
+        // --- Main Calculation Logic (MODIFIED for Symmetry) ---
+        async function calculatePMM() {
+            if (isCalculating) return;
+            isCalculating = true;
+            document.getElementById('btnText').textContent = "計算中...";
+            document.getElementById('btnSpinner').classList.remove('hidden');
+            await new Promise(r => setTimeout(r, 50));
+
+            try {
+                const props = getSectionProperties();
+                pmmResults = [];
+
+                const numAng = parseInt(document.getElementById('numAngles').value) || 36;
+                const numPts = parseInt(document.getElementById('numPoints').value) || 60;
+                
+                // [Modified] Check Symmetry Option
+                const isSymmetric = document.getElementById('chk_symmetry').checked;
+                
+                document.getElementById('rep_ang').textContent = numAng;
+                document.getElementById('rep_pts').textContent = numPts;
+
+                const polyFull = [{ x: -props.B/2, y: -props.H/2 }, { x: props.B/2, y: -props.H/2 }, { x: props.B/2, y: props.H/2 }, { x: -props.B/2, y: props.H/2 }];
+                let polyCore = [];
+                if (props.coreB > 0 && props.coreH > 0) {
+                    polyCore = [{ x: -props.coreB/2, y: -props.coreH/2 }, { x: props.coreB/2, y: -props.coreH/2 }, { x: props.coreB/2, y: props.coreH/2 }, { x: -props.coreB/2, y: props.coreH/2 }];
+                }
+
+                // 1. Calculate P0 & Pn_max
+                const Ag = props.B * props.H;
+                const Ac = props.coreB * props.coreH;
+                let P0_concrete = 0.85 * props.fc_out * (Ag - Ac);
+                if(props.coreB > 0) P0_concrete += 0.85 * props.fc_in * Ac;
+
+                let P0_steel = 0;
+                props.rebars.forEach(b => {
+                    const inCore = (Math.abs(b.x) <= props.coreB/2 && Math.abs(b.y) <= props.coreH/2);
+                    const fc_local = inCore ? props.fc_in : props.fc_out;
+                    P0_steel += (props.fy - 0.85 * fc_local) * b.A;
+                });
+
+                const Po = P0_concrete + P0_steel;
+                const Pn_max = 0.80 * Po; // ACI 318 Tied
+                pmmPnMax = Pn_max; // Store for checks
+
+                // Update Report Elements
+                if(document.getElementById('r_po')) document.getElementById('r_po').textContent = (Po/1000).toFixed(1);
+                if(document.getElementById('r_pnmax')) document.getElementById('r_pnmax').textContent = (Pn_max/1000).toFixed(1);
+                if(document.getElementById('r_phipnmax')) document.getElementById('r_phipnmax').textContent = (0.65 * Pn_max / 1000).toFixed(1);
+
+                // 2. Generate Angles
+                let anglesSet = new Set();
+                const dAng = 360 / numAng;
+                
+                // [Modified] Generate angles based on symmetry
+                const maxAngle = isSymmetric ? 90 : 360;
+                for(let i=0; i<numAng; i++) {
+                    const a = i * dAng;
+                    if(a <= maxAngle) anglesSet.add(a);
+                }
+                
+                // Mandatory Angles
+                const mandatory = isSymmetric ? [0, 45, 90] : [0, 45, 90, 135, 180, 225, 270, 315];
+                mandatory.forEach(a => anglesSet.add(a));
+                
+                const angles = Array.from(anglesSet).sort((a,b)=>a-b);
+
+                const ec = 0.003;
+
+                // --- CALCULATION LOOP (Only 0-90 if symmetric) ---
+                for (let ang of angles) {
+                    const rad = ang * Math.PI / 180;
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+
+                    let d_max = -Infinity;
+                    polyFull.forEach(v => { const d = v.x*cos + v.y*sin; if(d>d_max) d_max=d; });
+                    let d_bar_min = Infinity;
+                    props.rebars.forEach(b => { const d = b.x*cos + b.y*sin; if(d<d_bar_min) d_bar_min=d; });
+                    const dt = d_max - d_bar_min; 
+
+                    // 3-ZONE C DISTRIBUTION
+                    let c_vals = [Infinity];
+                    
+                    const c_limit_lower = 0.5; // cm
+                    const c_limit_upper = props.H * 5; // cm
+                    const k_start = props.H * 0.15;
+                    const k_end = props.H * 1.0; 
+
+                    const n_knee = Math.floor(numPts * 0.7); 
+                    const n_tail1 = Math.floor(numPts * 0.15); 
+                    const n_tail2 = numPts - n_knee - n_tail1; 
+
+                    for(let k=0; k<n_tail1; k++) c_vals.push(c_limit_lower + (k_start - c_limit_lower) * (k/n_tail1));
+                    for(let k=0; k<=n_knee; k++) c_vals.push(k_start + (k_end - k_start) * (k/n_knee));
+                    for(let k=1; k<=n_tail2; k++) { let t = k/n_tail2; c_vals.push(k_end + (c_limit_upper - k_end) * (t*t)); }
+                    
+                    c_vals.sort((a,b) => b-a);
+
+                    for (let c of c_vals) {
+                        let Pn = 0, Mnx = 0, Mny = 0, et = 0;
+
+                        if (c === Infinity) {
+                            const Ag = props.B * props.H;
+                            const Ac = props.coreB * props.coreH;
+                            Pn += 0.85 * props.fc_out * (Ag - Ac) + 0.85 * props.fc_in * Ac;
+                            et = -0.003;
+                        } else {
+                            const a_out = props.beta1_out * c;
+                            const dist_out = d_max - a_out;
+                            const full = getPolygonProperties(clipPolygon(polyFull, cos, sin, dist_out));
+                            
+                            let sub = {A:0, Cx:0, Cy:0};
+                            if (polyCore.length > 0) sub = getPolygonProperties(clipPolygon(polyCore, cos, sin, dist_out));
+                            
+                            const F_sh = 0.85 * props.fc_out * (full.A - sub.A);
+                            Pn += F_sh;
+                            Mnx += 0.85 * props.fc_out * (full.A * full.Cy - sub.A * sub.Cy);
+                            Mny += 0.85 * props.fc_out * (full.A * full.Cx - sub.A * sub.Cx);
+
+                            if (polyCore.length > 0) {
+                                const a_in = props.beta1_in * c;
+                                const dist_in = d_max - a_in;
+                                const core = getPolygonProperties(clipPolygon(polyCore, cos, sin, dist_in));
+                                const F_co = 0.85 * props.fc_in * core.A;
+                                Pn += F_co; Mnx += F_co * core.Cy; Mny += F_co * core.Cx;
+                            }
+                            et = 0.003 * (dt - c) / c;
+                        }
+
+                        props.rebars.forEach(bar => {
+                            let sigma_s = 0;
+                            if (c === Infinity) {
+                                sigma_s = props.fy;
+                            } else {
+                                const d_bar = bar.x * cos + bar.y * sin;
+                                const dist_from_extreme = d_max - d_bar;
+                                const dist_from_NA = c - dist_from_extreme;
+                                const strain = 0.003 * dist_from_NA / c;
+                                sigma_s = Math.max(-props.fy, Math.min(props.fy, strain * props.Es));
+                                
+                                const inCore = (Math.abs(bar.x) <= props.coreB/2 && Math.abs(bar.y) <= props.coreH/2);
+                                const b1 = inCore ? props.beta1_in : props.beta1_out;
+                                const fc_loc = inCore ? props.fc_in : props.fc_out;
+
+                                if(dist_from_extreme >= 0 && dist_from_extreme <= b1*c) {
+                                    sigma_s -= 0.85 * fc_loc;
+                                }
+                            }
+                            const F_bar = sigma_s * bar.A;
+                            Pn += F_bar;
+                            Mnx += F_bar * bar.y;
+                            Mny += F_bar * bar.x;
+                        });
+
+                        const phi = calculatePhi(et, props.fy, props.Es);
+                        let phiPn = phi * Pn;
+                        
+                        const phiPn_Limit = 0.65 * Pn_max;
+                        let isCapped = false;
+                        if(phiPn > phiPn_Limit) {
+                            phiPn = phiPn_Limit;
+                            isCapped = true;
+                        }
+
+                        pmmResults.push({
+                            angle: ang,
+                            c: c,
+                            Pn: Pn / 1000, 
+                            Mx: Mnx / 100000, 
+                            My: Mny / 100000,
+                            et: et,
+                            phi: phi,
+                            phiPn: phiPn / 1000,
+                            phiMx: (phi * Mnx) / 100000,
+                            phiMy: (phi * Mny) / 100000,
+                            isCapped: isCapped
+                        });
+                    }
+                }
+                
+                // Add Pure Tension
+                const As_total = props.rebars.reduce((a,b)=>a+b.A, 0);
+                const Pt = -(props.fy * As_total)/1000;
+                const ptPoint = { 
+                    angle: 0, c: 0, 
+                    Pn: Pt, Mx: 0, My: 0, 
+                    et: 999, phi: 0.9, 
+                    phiPn: 0.9*Pt, phiMx: 0, phiMy: 0 
+                };
+                pmmResults.push(ptPoint);
+
+                // --- [MODIFIED] SYMMETRY MIRRORING ---
+                // If symmetric mode is on, generate missing quadrants
+                if(isSymmetric) {
+                    const originalPoints = [...pmmResults];
+                    
+                    // Helper to push mirrored point
+                    const pushMirror = (basePt, newAngle, flipMx, flipMy) => {
+                        const newPt = {...basePt};
+                        newPt.angle = newAngle;
+                        if(flipMx) { newPt.Mx *= -1; newPt.phiMx *= -1; }
+                        if(flipMy) { newPt.My *= -1; newPt.phiMy *= -1; }
+                        pmmResults.push(newPt);
+                    };
+
+                    originalPoints.forEach(p => {
+                        // Skip pure tension point duplicates if angle isn't specific
+                        if(p.c === 0 && p.Pn < 0 && p.angle === 0) return; // Handle Pt separately if needed, but it's isotropic
+
+                        // Q2: Mirror across Y-axis (Mnx same, Mny flips). Angle = 180 - a
+                        // Avoid duplicating 90 (which becomes 90) and 0 (which becomes 180, handled below)
+                        if(p.angle > 0 && p.angle < 90) {
+                            pushMirror(p, 180 - p.angle, false, true); // Q2
+                            pushMirror(p, 180 + p.angle, true, true);  // Q3
+                            pushMirror(p, 360 - p.angle, true, false); // Q4
+                        }
+                        else if(p.angle === 0) {
+                            // Mirror 0 to 180 (Mx same, My flips - but wait, at 0 deg, Mx is ~0, My is Max)
+                            // 0 deg: Vector along X. Neutral Axis Y. Moment Mny.
+                            // 180 deg: Vector along -X. Moment -Mny.
+                            // So flip My.
+                            pushMirror(p, 180, false, true);
+                        }
+                        else if(p.angle === 90) {
+                            // Mirror 90 to 270 (Vector along Y -> -Y).
+                            // 90 deg: Mnx. 270: -Mnx.
+                            pushMirror(p, 270, true, false);
+                        }
+                    });
+                }
+
+                plot3D();
+                updateReport();
+                switchTab('pmm');
+
+            } catch (e) {
+                console.error(e);
+                alert("Error: " + e.message);
+            } finally {
+                isCalculating = false;
+                document.getElementById('btnText').textContent = "執行高精度分析";
+                document.getElementById('btnSpinner').classList.add('hidden');
+            }
+        }
+
+        // --- Plotting ---
+        function plot3D() {
+            if (pmmResults.length === 0) return;
+            const mode = document.querySelector('input[name="viewMode3D"]:checked').value;
+            const isDes = (mode === 'design');
+            const data = pmmResults.filter(d => d.Pn > -99999);
+
+            const x = data.map(p => isDes ? p.phiMx : p.Mx);
+            const y = data.map(p => isDes ? p.phiMy : p.My);
+            const z = data.map(p => isDes ? p.phiPn : p.Pn);
+            const c = data.map(p => p.angle);
+
+            const trace = {
+                x: x, y: y, z: z,
+                mode: 'markers',
+                marker: { size: 2, color: c, colorscale: 'Viridis', opacity: 0.8 },
+                type: 'scatter3d' 
+            };
+            
+            const layout = {
+                title: isDes ? '設計強度 (φPn)' : '標稱強度 (Pn)',
+                scene: {
+                    xaxis: { title: isDes ? 'φMx' : 'Mx' },
+                    yaxis: { title: isDes ? 'φMy' : 'My' },
+                    zaxis: { title: isDes ? 'φPn' : 'Pn' }
+                },
+                margin: { l: 0, r: 0, b: 0, t: 50 }
+            };
+
+            Plotly.newPlot('plotly3d', [trace], layout);
+        }
+
+        function update2DPlot() {
+            if (pmmResults.length === 0) return;
+            
+            const targetAngle = parseInt(document.querySelector('input[name="angleView"]:checked').value);
+            const mode = document.querySelector('input[name="viewMode2D"]:checked').value;
+            const isDes = (mode === 'design');
+            
+            const tolerance = 5;
+            const data = pmmResults.filter(p => Math.abs(p.angle - targetAngle) < tolerance || Math.abs(p.angle - (targetAngle+360)) < tolerance);
+            
+            data.sort((a, b) => a.Pn - b.Pn);
+
+            let xVal = [], yVal = [], xLabel = "";
+            
+            if (targetAngle === 0) {
+                xVal = data.map(p => Math.abs(isDes ? p.phiMy : p.My));
+                xLabel = isDes ? "φMy (tf-m)" : "My (tf-m)";
+            } else if (targetAngle === 90) {
+                xVal = data.map(p => Math.abs(isDes ? p.phiMx : p.Mx));
+                xLabel = isDes ? "φMx (tf-m)" : "Mx (tf-m)";
+            } else {
+                xVal = data.map(p => {
+                    const mx = isDes ? p.phiMx : p.Mx;
+                    const my = isDes ? p.phiMy : p.My;
+                    return Math.sqrt(mx*mx + my*my);
+                });
+                xLabel = isDes ? "φM_res (tf-m)" : "M_res (tf-m)";
+            }
+            yVal = data.map(p => isDes ? p.phiPn : p.Pn);
+
+            const trace = {
+                x: xVal, y: yVal,
+                mode: 'lines+markers',
+                type: 'scatter',
+                line: { color: isDes ? '#059669' : '#2563eb' }
+            };
+
+            const layout = {
+                title: `P-M 曲線 (${isDes?'設計':'標稱'}, 角度:${targetAngle}°)`,
+                xaxis: { title: xLabel },
+                yaxis: { title: isDes ? 'φPn (tf)' : 'Pn (tf)' },
+                margin: { t: 50, l: 50, r: 50, b: 50 }
+            };
+
+            Plotly.newPlot('plotly2d', [trace], layout);
+        }
+
+        function updateReport() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+            const step = Math.ceil(pmmResults.length / 100); 
+            
+            pmmResults.forEach((p, i) => {
+                if (i % step !== 0 && p.c !== 0 && p.c !== Infinity) return;
+                const tr = document.createElement('tr');
+                const m_res_phi = Math.sqrt(p.phiMx**2 + p.phiMy**2);
+                tr.innerHTML = `
+                    <td class="p-2 border">${p.angle.toFixed(0)}° / ${p.c===Infinity?'Inf':p.c.toFixed(1)}</td>
+                    <td class="p-2 border font-mono">${p.Pn.toFixed(1)}</td>
+                    <td class="p-2 border font-mono">${p.Mx.toFixed(1)}</td>
+                    <td class="p-2 border font-mono">${p.My.toFixed(1)}</td>
+                    <td class="p-2 border text-blue-600">${p.et===999?'Inf':p.et.toFixed(4)}</td>
+                    <td class="p-2 border text-blue-600 font-bold">${p.phi.toFixed(2)}</td>
+                    <td class="p-2 border bg-green-50 font-bold">${p.phiPn.toFixed(1)}</td>
+                    <td class="p-2 border bg-green-50">${m_res_phi.toFixed(1)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function exportExcel() {
+            if (pmmResults.length === 0) return alert("請先計算");
+            const ws = XLSX.utils.json_to_sheet(pmmResults);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "PMM_Data");
+            XLSX.writeFile(wb, "PMM_Results.xlsx");
+        }
+
+        // =========================================================================
+        // NEW TOOLS FUNCTIONS (Refined to match "PMM(無內外).HTML")
+        // =========================================================================
+        
+        // Helper: Interpolate Moment Capacity at a specific Pu for a given angle
+        // This is equivalent to "getCapacityAtPu" in the reference file's Check Logic
+        function getCapacityAtPu(targetAngle, isDesign = true) {
+            const tolerance = 2; // degrees to snap to
+            let points = pmmResults.filter(p => Math.abs(p.angle - targetAngle) < tolerance || Math.abs(p.angle - (targetAngle+360)) < tolerance);
+            
+            if (points.length < 2) return { mx:0, my:0, m_res:0 };
+            
+            // Sort by Axial Load (Ascending)
+            points.sort((a,b) => (isDesign ? a.phiPn : a.Pn) - (isDesign ? b.phiPn : b.Pn));
+
+            const Pu = parseFloat(document.getElementById(isDesign ? 'check_pu' : 'axis_pu').value);
+            
+            // Find interval
+            for(let i=0; i<points.length-1; i++) {
+                const p1 = points[i];
+                const p2 = points[i+1];
+                const P1 = isDesign ? p1.phiPn : p1.Pn;
+                const P2 = isDesign ? p2.phiPn : p2.Pn;
+
+                if((P1 <= Pu && P2 >= Pu) || (P1 >= Pu && P2 <= Pu)) {
+                    // Linear Interpolation
+                    const ratio = (Pu - P1) / (P2 - P1);
+                    const Mx1 = isDesign ? p1.phiMx : p1.Mx;
+                    const Mx2 = isDesign ? p2.phiMx : p2.Mx;
+                    const My1 = isDesign ? p1.phiMy : p1.My;
+                    const My2 = isDesign ? p2.phiMy : p2.My;
+                    
+                    const finalMx = Mx1 + ratio * (Mx2 - Mx1);
+                    const finalMy = My1 + ratio * (My2 - My1);
+                    return { mx: finalMx, my: finalMy, m_res: Math.sqrt(finalMx**2 + finalMy**2) };
+                }
+            }
+            return { mx:0, my:0, m_res:0 }; // Out of bounds or pure tension/compression limits
+        }
+
+        // Helper: Find closest point in PMM cloud using vector alignment (Method 3)
+        function findClosestVectorPoint(Pu, Mx, My, useDesign = true) {
+            if(pmmResults.length === 0) return null;
+            const targetLen = Math.sqrt(Pu*Pu + Mx*Mx + My*My);
+            if(targetLen < 1e-6) return null;
+
+            let minAngle = Infinity;
+            let bestPoint = null;
+            
+            for(let p of pmmResults) {
+                const p_P = useDesign ? p.phiPn : p.Pn;
+                const p_Mx = useDesign ? p.phiMx : p.Mx;
+                const p_My = useDesign ? p.phiMy : p.My;
+                const p_Len = Math.sqrt(p_P*p_P + p_Mx*p_Mx + p_My*p_My);
+                if(p_Len < 1e-6) continue;
+
+                const dot = Pu * p_P + Mx * p_Mx + My * p_My;
+                const cos = Math.max(-1, Math.min(1, dot / (targetLen * p_Len)));
+                const angle = Math.acos(cos);
+
+                if(angle < minAngle) {
+                    minAngle = angle;
+                    bestPoint = p;
+                }
+            }
+            return { point: bestPoint, angleDiff: minAngle };
+        }
+
+        // Tool 1: Strength Check (Updated to match Reference File Logic EXACTLY)
+        function toolCheckStrength() {
+            if(pmmResults.length === 0) return alert("請先執行高精度分析以產生 PMM 數據！");
+            
+            const Pu = parseFloat(document.getElementById('check_pu').value);
+            const Mux = parseFloat(document.getElementById('check_mux').value);
+            const Muy = parseFloat(document.getElementById('check_muy').value);
+
+            let isLimitExceeded = false;
+            let Cr1 = 0, Cr2 = 0, Cr3 = 0, finalDC = 0;
+
+            // 0. Check Max Limit (Logic matched to ref file: if exceeded, set flag, but continue calc Cr3)
+            const phiPn_max_limit = 0.65 * pmmPnMax / 1000;
+            if(Pu > phiPn_max_limit) {
+                isLimitExceeded = true;
+                // Cr1 and Cr2 become N/A
+            } 
+            
+            // --- Method 3: Vector 3D (P-M) - Calculated regardless of limit ---
+            const match = findClosestVectorPoint(Pu, Mux, Muy, true); 
+            if(match && match.point) {
+                const p = match.point;
+                const capLen = Math.sqrt(p.phiPn**2 + p.phiMx**2 + p.phiMy**2);
+                const demLen = Math.sqrt(Pu**2 + Mux**2 + Muy**2);
+                Cr3 = (capLen > 1e-6) ? (demLen / capLen) : 0;
+            } else {
+                Cr3 = 999;
+            }
+
+            if(isLimitExceeded) {
+                finalDC = Cr3; // Ref behavior: takes Cr3 as final if limit exceeded, but marks as NG/NA
+                
+                document.getElementById('res_check').classList.remove('hidden');
+                document.getElementById('val_cr1').textContent = "N/A";
+                document.getElementById('val_cr2').textContent = "N/A";
+                document.getElementById('val_cr3').textContent = Cr3.toFixed(3);
+                document.getElementById('val_dc').textContent = Cr3.toFixed(3);
+                
+                const statusEl = document.getElementById('val_status');
+                statusEl.textContent = "不安全 (NG) - 超過軸壓上限";
+                statusEl.className = "px-3 py-1 rounded text-white text-sm font-bold bg-red-500";
+                return;
+            }
+
+            // --- Method 1: Bresler (Interpolation at 0 and 90 deg) ---
+            // Note: Angle 90 corresponds to Mnx (Mx), Angle 0 corresponds to Mny (My).
+            
+            const cap90 = getCapacityAtPu(90, true); // Mx capacity
+            const cap0 = getCapacityAtPu(0, true);   // My capacity
+            const phiMnx = cap90.mx; // Capacity about X (at 90 deg)
+            const phiMny = cap0.my;  // Capacity about Y (at 0 deg)
+
+            // Avoid division by zero
+            const term1 = (Math.abs(phiMnx) > 1e-6) ? Math.abs(Mux / phiMnx) : (Math.abs(Mux) < 1e-6 ? 0 : 999);
+            const term2 = (Math.abs(phiMny) > 1e-6) ? Math.abs(Muy / phiMny) : (Math.abs(Muy) < 1e-6 ? 0 : 999);
+            Cr1 = term1 + term2;
+
+            // --- Method 2: Vector Moment (At specific angle) ---
+            // Coordinate System: Angle 0 is Y-axis (My), Angle 90 is X-axis (Mx).
+            // Input Vector is (Muy, Mux) in terms of axes (My, Mx).
+            // atan2(y, x) -> atan2(Mx, My) -> atan2(Mux, Muy)
+            // Use atan2(Mux, Muy) to map demand vector to PMM generation angle correctly.
+            // PMM Angle 0 = My (Y axis). PMM Angle 90 = Mx (X axis).
+            
+            let demandAngleDeg = Math.abs(Math.atan2(Mux, Muy) * 180 / Math.PI); // First quadrant check
+
+            // Find closest available angle in existing results
+            let closestAngle = 0;
+            let minDiff = 999;
+            const uniqueAngles = [...new Set(pmmResults.map(p => p.angle))];
+            uniqueAngles.forEach(a => {
+                const diff = Math.abs(a - demandAngleDeg);
+                if(diff < minDiff) { minDiff = diff; closestAngle = a; }
+            });
+
+            const capVec = getCapacityAtPu(closestAngle, true);
+            const m_dem = Math.sqrt(Mux**2 + Muy**2);
+            Cr2 = (capVec.m_res > 1e-6) ? m_dem / capVec.m_res : 999;
+
+            // --- Final Result ---
+            finalDC = Math.max(Cr1, Cr2, Cr3);
+
+            // Display
+            document.getElementById('res_check').classList.remove('hidden');
+            
+            document.getElementById('val_cr1').textContent = Cr1.toFixed(3);
+            document.getElementById('val_cr2').textContent = Cr2.toFixed(3);
+            document.getElementById('val_cr3').textContent = Cr3.toFixed(3);
+            document.getElementById('val_dc').textContent = finalDC.toFixed(3);
+
+            const statusEl = document.getElementById('val_status');
+            if(finalDC <= 1.0) {
+                statusEl.textContent = "安全 (OK)";
+                statusEl.className = "px-3 py-1 rounded text-white text-sm font-bold bg-green-500";
+            } else {
+                statusEl.textContent = "不安全 (NG)";
+                statusEl.className = "px-3 py-1 rounded text-white text-sm font-bold bg-red-500";
+            }
+        }
+
+        // Tool 2: Nominal Point Query (Vector) - Unchanged
+        function toolQueryVector() {
+            if(pmmResults.length === 0) return alert("請先執行高精度分析！");
+            const Pu = parseFloat(document.getElementById('vec_pu').value);
+            const Mux = parseFloat(document.getElementById('vec_mux').value);
+            const Muy = parseFloat(document.getElementById('vec_muy').value);
+            const match = findClosestVectorPoint(Pu, Mux, Muy, false); // false = use Pn
+            
+            document.getElementById('res_vec').classList.remove('hidden');
+            if(match && match.point) {
+                document.getElementById('val_vec_pn').textContent = match.point.Pn.toFixed(2);
+                document.getElementById('val_vec_mx').textContent = match.point.Mx.toFixed(2);
+                document.getElementById('val_vec_my').textContent = match.point.My.toFixed(2);
+            } else {
+                document.getElementById('val_vec_pn').textContent = "N/A";
+            }
+        }
+
+        // Tool 3: Axis Moment Query by Pu - Updated to use same interpolation logic
+        function toolQueryAxis() {
+            if(pmmResults.length === 0) return alert("請先執行高精度分析！");
+            
+            // Use same helper as Check Tool for consistency
+            // Nominal -> isDesign = false
+            const cap90 = getCapacityAtPu(90, false); // Mx
+            const cap0 = getCapacityAtPu(0, false);   // My
+
+            document.getElementById('res_axis').classList.remove('hidden');
+            document.getElementById('val_axis_mx').textContent = cap90.mx.toFixed(2) + " tf-m";
+            document.getElementById('val_axis_my').textContent = cap0.my.toFixed(2) + " tf-m";
+        }
+
+    </script>
+</body>
+</html>

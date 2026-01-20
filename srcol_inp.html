@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRC Master (macOS Style)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Apple System Fonts & Base Style from 介面.HTML */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F5F5F7; /* macOS window background */
+            color: #1D1D1F;
+            height: 100vh; 
+            overflow: hidden; 
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #C1C1C1; border-radius: 4px; border: 2px solid #F5F5F7; }
+        ::-webkit-scrollbar-thumb:hover { background: #A0A0A0; }
+
+        /* Card & Container Styling */
+        .mac-card {
+            background: #FFFFFF;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0,0,0,0.02);
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .prop-card {
+            background: #FFFFFF;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            border: 1px solid #E5E5EA;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .prop-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+            border-color: #D1D1D6;
+        }
+        
+        .prop-card.type-col { border-left: 4px solid #007AFF; }
+        .prop-card.type-beam { border-left: 4px solid #34C759; }
+        .prop-card.type-brace { border-left: 4px solid #FF9500; }
+
+        /* Inputs */
+        .mac-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #D1D1D6;
+            border-radius: 6px;
+            background-color: #FFFFFF;
+            font-family: "SF Mono", "Monaco", monospace;
+            font-size: 13px;
+            color: #1D1D1F;
+            transition: all 0.15s;
+        }
+        .mac-input:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+
+        /* Tables */
+        .mac-table-container {
+            border-radius: 10px;
+            border: 1px solid #D1D1D6;
+            background: white;
+            overflow: hidden;
+        }
+        .mac-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .mac-table th {
+            background: #F5F5F7;
+            color: #86868B;
+            font-weight: 600;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #D1D1D6;
+            white-space: nowrap;
+        }
+        .mac-table td {
+            border-bottom: 1px solid #E5E5EA;
+            padding: 0;
+        }
+        .mac-table input {
+            width: 100%;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            font-family: "SF Mono", monospace;
+            font-size: 13px;
+        }
+        .mac-table input:focus {
+            background-color: #F0F8FF;
+            box-shadow: inset 0 0 0 2px #007AFF;
+            outline: none;
+        }
+
+        /* Buttons */
+        .mac-btn {
+            background: #FFFFFF;
+            border: 1px solid #D1D1D6;
+            color: #1D1D1F;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .mac-btn:hover { background: #F5F5F7; border-color: #C7C7CC; }
+        .mac-btn:active { background: #E5E5EA; transform: scale(0.98); }
+        
+        .mac-btn-primary {
+            background: #007AFF;
+            border: 1px solid #007AFF;
+            color: white;
+        }
+        .mac-btn-primary:hover { background: #0071E3; border-color: #0071E3; }
+
+        /* Navigation Tabs (Apple Style from 介面.HTML) */
+        .nav-tabs-container {
+            background: #FFFFFF;
+            border-bottom: 1px solid #D1D1D6;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        
+        .nav-tab {
+            padding: 6px 14px;
+            border-radius: 15px; /* Pill shape */
+            font-size: 13px;
+            font-weight: 500;
+            color: #86868B; /* Inactive text */
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .nav-tab:hover {
+            background-color: #F5F5F7;
+            color: #1D1D1F;
+        }
+        
+        .nav-tab.active {
+            background-color: #E5E5EA; /* Light Gray active pill */
+            color: #000000;
+            font-weight: 600;
+        }
+        
+        .nav-tab i {
+            font-size: 12px;
+        }
+
+        /* Header Styling */
+        .app-header {
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E5EA;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            flex-shrink: 0;
+            z-index: 50;
+        }
+
+        /* Custom Dropdown (Apple Style) */
+        #global-dropdown {
+            position: absolute;
+            z-index: 9999;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #D1D1D6;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            width: 200px;
+            font-family: "SF Mono", monospace;
+            font-size: 13px;
+            padding: 4px;
+        }
+        .dropdown-item {
+            padding: 6px 10px;
+            cursor: default;
+            color: #1D1D1F;
+            border-radius: 4px;
+        }
+        .dropdown-item:hover, .dropdown-item.active {
+            background-color: #007AFF;
+            color: white;
+        }
+
+        /* Modal */
+        #modal-overlay { 
+            background-color: rgba(0, 0, 0, 0.3); 
+            backdrop-filter: blur(5px); 
+        }
+        
+        .preview-box {
+            width: 100px; height: 100px;
+            background: #F5F5F7;
+            border: 1px solid #E5E5EA;
+            border-radius: 8px;
+            flex-shrink: 0;
+            margin-left: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 4px;
+        }
+
+        .card-action-btn { position: absolute; top: 8px; right: 8px; color: #C7C7CC; cursor: pointer; transition: color 0.2s; z-index: 20; font-size: 1.1rem; }
+        .card-action-btn:hover { color: #FF3B30; }
+        
+        /* Main Content Padding */
+        #content-area {
+            background-color: #F5F5F7; /* Body Bg */
+            padding: 24px;
+            height: 100%;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="global-dropdown"></div>
+
+    <!-- 1. Top Toolbar (Logo & File Actions) -->
+    <header class="app-header">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold shadow-sm">S</div>
+                <div>
+                    <h1 class="text-sm font-bold text-gray-900 tracking-tight leading-tight">SRC Master</h1>
+                    <p class="text-[10px] text-gray-500 font-medium tracking-wide leading-tight">Pro Edition</p>
+                </div>
+            </div>
+            
+            <div class="h-6 w-px bg-gray-200 mx-2"></div>
+
+            <div class="flex items-center gap-2">
+                <label class="mac-btn flex items-center gap-2 cursor-pointer border-dashed border-gray-300">
+                    <i class="fa-regular fa-folder-open text-blue-500"></i> Load .INP
+                    <span id="status-inp" class="w-1.5 h-1.5 rounded-full hidden bg-green-500"></span>
+                    <input type="file" class="hidden" accept=".inp" onchange="window.handleFileLoad(this, 'INP')">
+                </label>
+                <label class="mac-btn flex items-center gap-2 cursor-pointer border-dashed border-gray-300">
+                    <i class="fa-solid fa-cube text-purple-500"></i> Load .$ET
+                    <span id="status-et" class="w-1.5 h-1.5 rounded-full hidden bg-green-500"></span>
+                    <input type="file" class="hidden" accept=".$et" onchange="window.handleFileLoad(this, 'ET')">
+                </label>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="text-xs text-gray-500 font-mono font-medium flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-md border border-gray-100">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <span id="file-info">Ready</span>
+            </div>
+            <button onclick="window.downloadINP()" class="mac-btn bg-gray-800 text-white border-gray-800 hover:bg-black flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-file-export"></i> Export .INP
+            </button>
+        </div>
+    </header>
+
+    <!-- 2. Navigation Tabs (The "Parameter Editor" Style) -->
+    <nav class="nav-tabs-container">
+        <!-- Project -->
+        <div class="nav-tab active" data-tab="general" onclick="window.switchTab('general')">
+            <i class="fa-solid fa-sliders"></i> 基本設定
+        </div>
+        
+        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+        <!-- Definitions -->
+        <div class="nav-tab" data-tab="props" onclick="window.switchTab('props')">
+            <i class="fa-solid fa-shapes"></i> 構件定義
+        </div>
+        <div class="nav-tab" data-tab="reassign" onclick="window.switchTab('reassign')">
+            <i class="fa-solid fa-layer-group"></i> 構件佈置
+        </div>
+
+        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+        <!-- Optimization -->
+        <div class="nav-tab" data-tab="opt-col" onclick="window.switchTab('opt-col')">
+            <i class="fa-solid fa-arrow-up-wide-short"></i> 柱最佳化
+        </div>
+        <div class="nav-tab" data-tab="opt-beam" onclick="window.switchTab('opt-beam')">
+            <i class="fa-solid fa-bars"></i> 梁最佳化
+        </div>
+        <div class="nav-tab" data-tab="opt-brace" onclick="window.switchTab('opt-brace')">
+            <i class="fa-solid fa-xmarks-lines"></i> 斜撐最佳化
+        </div>
+
+        <div class="w-px h-4 bg-gray-300 mx-1"></div>
+
+        <!-- Analysis -->
+        <div class="nav-tab" data-tab="loads" onclick="window.switchTab('loads')">
+            <i class="fa-solid fa-weight-hanging"></i> 載重
+        </div>
+        <div class="nav-tab" data-tab="rebar" onclick="window.switchTab('rebar')">
+            <i class="fa-solid fa-grip-lines"></i> 配筋
+        </div>
+        <div class="nav-tab" data-tab="calc-data" onclick="window.switchTab('calc-data')">
+            <i class="fa-solid fa-calculator"></i> 計算資料
+        </div>
+    </nav>
+
+    <!-- 3. Main Content Area -->
+    <main id="content-area">
+        <!-- General View -->
+        <div id="view-general" class="view-section space-y-6 animate-fade-in max-w-6xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">基本設定 (General Settings)</h2>
+            
+            <div class="mac-card p-6">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">專案資訊</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1.5">程式版本</label><input type="text" id="header-prog" class="mac-input"></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1.5">單位</label><input type="text" id="header-units" class="mac-input"></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1.5">ETABS 檔名 ($ET)</label><input type="text" id="header-et" class="mac-input text-blue-600 font-bold"></div>
+                    <div><label class="block text-xs font-medium text-gray-500 mb-1.5">結果檔名 (.TXT)</label><input type="text" id="header-txt" class="mac-input text-blue-600 font-bold"></div>
+                </div>
+            </div>
+
+            <div class="mac-card p-6">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">執行控制參數</h3>
+                <div id="exec-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- Properties View -->
+        <div id="view-props" class="view-section hidden space-y-6 max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold text-gray-900">構件定義 (Member Properties)</h2>
+                <div class="flex gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                    <select id="prop-filter" class="px-3 py-1.5 text-sm font-medium text-gray-600 bg-transparent focus:outline-none border-none" onchange="window.renderProps()">
+                        <option value="ALL">全部</option>
+                        <option value="col">柱 (Column)</option>
+                        <option value="beam">梁 (Beam)</option>
+                        <option value="brace">斜撐 (Brace)</option>
+                    </select>
+                    <div class="w-px bg-gray-200 my-1"></div>
+                    <input type="text" id="prop-search" placeholder="搜尋..." class="w-40 px-2 py-1.5 text-sm bg-transparent focus:outline-none" onkeyup="window.renderProps()">
+                    <button onclick="window.addProperty()" class="mac-btn-primary rounded px-3 py-1.5 text-xs font-bold shadow-sm">＋ 新增</button>
+                </div>
+            </div>
+            <div id="props-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+        </div>
+
+        <!-- Reassign View -->
+        <div id="view-reassign" class="view-section hidden space-y-6 max-w-6xl mx-auto">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-900">構件佈置 (Member Reassignment)</h2>
+                <div class="flex gap-2">
+                    <button onclick="window.addReassignRow('col')" class="mac-btn">＋ 柱佈置</button>
+                    <button onclick="window.addReassignRow('beam')" class="mac-btn">＋ 梁佈置</button>
+                    <button onclick="window.addReassignRow('brace')" class="mac-btn">＋ 斜撐佈置</button>
+                </div>
+            </div>
+            <div id="reassign-container" class="space-y-8">
+                <div class="mac-table-container"><div class="bg-gray-50/50 px-4 py-3 border-b border-gray-200 font-bold text-gray-700 flex items-center cursor-pointer" onclick="window.toggleSection('reassign-col')"><span class="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>柱佈置 (Column)</div><div id="reassign-col"><table class="mac-table"><thead><tr><th style="width:50px"></th><th>Type</th><th>Start</th><th>End</th><th>Step</th><th>Sty1</th><th>Sty2</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th></tr></thead><tbody id="tbody-reassign-col"></tbody></table></div></div>
+                <div class="mac-table-container"><div class="bg-gray-50/50 px-4 py-3 border-b border-gray-200 font-bold text-gray-700 flex items-center cursor-pointer" onclick="window.toggleSection('reassign-beam')"><span class="w-2 h-2 bg-green-500 rounded-full mr-3"></span>梁佈置 (Beam)</div><div id="reassign-beam"><table class="mac-table"><thead><tr><th style="width:50px"></th><th>Type</th><th>Start</th><th>End</th><th>Step</th><th>Sty1</th><th>Sty2</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th></tr></thead><tbody id="tbody-reassign-beam"></tbody></table></div></div>
+                <div class="mac-table-container"><div class="bg-gray-50/50 px-4 py-3 border-b border-gray-200 font-bold text-gray-700 flex items-center cursor-pointer" onclick="window.toggleSection('reassign-brace')"><span class="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>斜撐佈置 (Brace)</div><div id="reassign-brace"><table class="mac-table"><thead><tr><th style="width:50px"></th><th>Type</th><th>Start</th><th>End</th><th>Step</th><th>Sty1</th><th>Sty2</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th></tr></thead><tbody id="tbody-reassign-brace"></tbody></table></div></div>
+            </div>
+        </div>
+        
+        <!-- Optimization View -->
+        <div id="view-opt-col" class="view-section hidden space-y-6 max-w-6xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">柱最佳化 (Column Optimization)</h2>
+            <div class="mac-table-container"><div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50"><h3 class="font-bold text-gray-700 text-sm">Column Optimization Groups</h3><button onclick="window.addOptRow('col')" class="mac-btn">新增</button></div><table class="mac-table"><thead><tr><th style="width:50px"></th><th>ID</th><th>Section Candidates (Space separated)</th></tr></thead><tbody id="tbody-opt-col"></tbody></table></div>
+        </div>
+        <div id="view-opt-beam" class="view-section hidden space-y-6 max-w-6xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">梁最佳化 (Beam Optimization)</h2>
+            <div class="mac-table-container"><div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50"><h3 class="font-bold text-gray-700 text-sm">Beam Optimization Groups</h3><button onclick="window.addOptRow('beam')" class="mac-btn">新增</button></div><table class="mac-table"><thead><tr><th style="width:50px"></th><th>ID</th><th>Section Candidates (Space separated)</th></tr></thead><tbody id="tbody-opt-beam"></tbody></table></div>
+        </div>
+        <div id="view-opt-brace" class="view-section hidden space-y-6 max-w-6xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">斜撐最佳化 (Brace Optimization)</h2>
+            <div class="mac-table-container">
+                <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold text-gray-700 text-sm">Brace Optimization Groups</h3>
+                    <button onclick="window.addOptRow('brace')" class="mac-btn">新增</button>
+                </div>
+                <table class="mac-table"><thead><tr><th style="width:50px"></th><th>ID</th><th>Section Candidates (Space separated)</th></tr></thead><tbody id="tbody-opt-brace"></tbody></table>
+            </div>
+        </div>
+
+        <!-- Loads View -->
+        <div id="view-loads" class="view-section hidden space-y-6 max-w-6xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">載重設定 (Load Cases & Combinations)</h2>
+            <div class="flex flex-col gap-6">
+                <!-- Top: Load Cases -->
+                <div class="mac-card p-5">
+                    <div class="flex justify-between mb-4 items-center border-b border-gray-100 pb-2">
+                        <h3 class="font-bold text-gray-700">載重案例 (Load Cases)</h3>
+                        <button onclick="window.addLoadCase()" class="mac-btn-primary rounded px-3 py-1">+ 新增案例</button>
+                    </div>
+                    <div id="load-case-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-2"></div>
+                </div>
+
+                <!-- Bottom: Load Combinations -->
+                <div class="mac-table-container flex flex-col flex-1 min-h-[400px]">
+                    <div class="px-5 py-3 border-b border-gray-200 flex justify-between bg-gray-50 items-center">
+                        <h3 class="font-bold text-gray-700">載重組合 (Combinations)</h3>
+                        <button onclick="window.addLoadComb()" class="mac-btn">+ 新增組合</button>
+                    </div>
+                    <div class="overflow-auto flex-1">
+                        <table class="mac-table">
+                            <thead id="thead-load-comb"></thead>
+                            <tbody id="tbody-load-comb"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Rebar View -->
+        <div id="view-rebar" class="view-section hidden space-y-6 max-w-7xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">標準配筋表 (Standard Rebar)</h2>
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div class="mac-table-container h-[500px] flex flex-col">
+                    <div class="px-4 py-3 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                        <h3 class="font-bold text-blue-800">柱配筋</h3>
+                        <button onclick="window.addRebarRow('col')" class="mac-btn">新增</button>
+                    </div>
+                    <div class="overflow-auto flex-1">
+                        <table class="mac-table">
+                            <thead><tr><th></th><th>ID</th><th>NX</th><th>NY</th><th>AS</th><th>D1</th><th>FC_OUT</th></tr></thead>
+                            <tbody id="tbody-rebar-col"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mac-table-container h-[500px] flex flex-col"><div class="px-4 py-3 bg-green-50 border-b border-green-100 flex justify-between items-center"><h3 class="font-bold text-green-800">梁配筋</h3><button onclick="window.addRebarRow('beam')" class="mac-btn">新增</button></div><div class="overflow-auto flex-1"><table class="mac-table"><thead><tr><th></th><th>ID</th><th>NX</th><th>NY</th><th>AS</th><th>D1</th></tr></thead><tbody id="tbody-rebar-beam"></tbody></table></div></div>
+                <div class="mac-table-container h-[500px] flex flex-col">
+                    <div class="px-4 py-3 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
+                        <h3 class="font-bold text-orange-800">斜撐配筋</h3>
+                        <button onclick="window.addRebarRow('brace')" class="mac-btn">新增</button>
+                    </div>
+                    <div class="overflow-auto flex-1">
+                        <table class="mac-table">
+                            <thead><tr><th></th><th>ID</th><th>NX</th><th>NY</th><th>AS</th><th>D1</th><th>FC_OUT</th></tr></thead>
+                            <tbody id="tbody-rebar-brace"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calc Data View -->
+        <div id="view-calc-data" class="view-section hidden space-y-6 max-w-6xl mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">設計構件計算資料 (Calculation Data)</h2>
+            <div class="mac-card p-0 h-[600px] flex flex-col overflow-hidden">
+                <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs text-gray-500">每一行為一筆資料</div>
+                <textarea id="calc-data-input" class="w-full h-full p-4 font-mono text-sm focus:outline-none resize-none" style="border:none;" 
+                    onchange="AppData.calculatorData = this.value.split(/\n/);"></textarea>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal-overlay" class="fixed inset-0 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-[900px] max-w-full max-h-[90vh] flex flex-col overflow-hidden animate-fade-up border border-gray-200">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm z-10">
+                <h3 class="font-bold text-lg text-gray-900">斷面詳圖</h3>
+                <button onclick="window.closeModal()" class="w-7 h-7 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="flex flex-col md:flex-row h-full overflow-hidden">
+                <div class="flex-none w-full md:w-[500px] bg-gray-50 flex items-center justify-center p-8 border-r border-gray-200 relative">
+                    <canvas id="detail-canvas" class="w-full h-full object-contain"></canvas>
+                    <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-6 text-xs font-bold text-gray-500 bg-white/60 py-1.5 backdrop-blur-sm border-t border-gray-100 rounded-full mx-8 shadow-sm">
+                        <div class="flex items-center"><span class="w-3 h-3 bg-gray-200 border border-gray-400 mr-1.5 rounded-full"></span>RC</div>
+                        <div class="flex items-center"><span class="w-3 h-3 bg-gray-600 mr-1.5 rounded-full"></span>Steel</div>
+                    </div>
+                </div>
+                <div class="flex-1 p-6 overflow-y-auto bg-white custom-scrollbar">
+                    <div class="space-y-8">
+                        <div>
+                            <h4 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 flex items-center"><i class="fa-solid fa-cube mr-2"></i>混凝土 (RC)</h4>
+                            <table class="w-full text-sm border-collapse detail-table" id="modal-table-rc"></table>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3 flex items-center"><i class="fa-solid fa-layer-group mr-2"></i>鋼骨 (STEEL)</h4>
+                            <table class="w-full text-sm border-collapse detail-table" id="modal-table-ss"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// GLOBALS
+const AppData = { header: {}, inpFiles: [], props: { col: [], beam: [], brace: [] }, reassign: { col: [], beam: [], brace: [] }, loadCases: [], loadCombs: [], execution: [], rebar: { col: [], beam: [], brace: [] }, opt: { col: [], beam: [], brace: [] }, etabsSections: new Map(), calculatorData: [] };
+const EXEC_KEYS = [{k:"NOC",d:"RC柱配筋種類數"},{k:"NOB",d:"RC梁配筋種類數"},{k:"NLC",d:"設計載重組合數"},{k:"NRMP",d:"材料重定義數"},{k:"NRCP",d:"柱斷面重定義數"},{k:"NRBP",d:"梁斷面重定義數"},{k:"NRBRP",d:"斜撐斷面重定義數"},{k:"NOPC",d:"柱最佳化群組數"},{k:"OP_C",d:"柱應力比控制"},{k:"NOPB",d:"梁最佳化群組數"},{k:"OP_B",d:"梁應力比控制"},{k:"FUX",d:"X向地震力折減"},{k:"FUY",d:"Y向地震力折減"},{k:"ALFAY",d:"起始降伏放大"},{k:"NOBR",d:"斜撐RC配筋數"},{k:"ITYP",d:"塑鉸分配方式"},{k:"EQX",d:"X向地震編號"},{k:"EQY",d:"Y向地震編號"}];
+const normalize = (s) => s ? s.replace(/["'\s]/g, "").toUpperCase() : "";
+const $ = id => document.getElementById(id);
+const createEl = (tag, cls) => { const el = document.createElement(tag); if(cls) el.className = cls; return el; };
+
+let activeDropdown = null; let activeInput = null; let activeMeta = null;
+document.addEventListener('click', (e) => { const dropdown = $('global-dropdown'); if (activeDropdown && !dropdown.contains(e.target) && e.target !== activeInput && !e.target.classList.contains('fa-caret-down')) { window.closeDropdown(); } });
+window.openDropdown = function(input, type, id, key) { activeInput = input; activeMeta = { type, id, key }; const dropdown = $('global-dropdown'); const rect = input.getBoundingClientRect(); dropdown.style.left = rect.left + 'px'; dropdown.style.top = (rect.bottom + window.scrollY + 2) + 'px'; dropdown.style.width = Math.max(rect.width, 200) + 'px'; dropdown.style.display = 'block'; activeDropdown = dropdown; window.renderDropdownItems(input.value, true); };
+window.renderDropdownItems = function(filterText, showAll = false) { const dropdown = $('global-dropdown'); dropdown.innerHTML = ''; const sections = Array.from(AppData.etabsSections.values()).sort((a, b) => a.name.localeCompare(b.name)); if (sections.length === 0) { dropdown.innerHTML = '<div class="p-2 text-xs text-gray-400">無可用斷面</div>'; return; } let found = false; sections.forEach(sec => { const match = showAll || sec.name.toUpperCase().includes(filterText.toUpperCase().trim()); if (match) { found = true; const div = document.createElement('div'); div.className = 'dropdown-item'; if (sec.name === filterText) div.classList.add('active'); div.innerText = sec.name; div.onmousedown = (e) => { e.preventDefault(); window.selectDropdownItem(sec.name); }; dropdown.appendChild(div); } }); if (!found) { dropdown.innerHTML = '<div class="p-2 text-xs text-gray-400">無符合結果</div>'; } else { const activeItem = dropdown.querySelector('.active'); if (activeItem) activeItem.scrollIntoView({ block: 'center' }); } };
+window.filterDropdown = function(text) { if (activeDropdown) window.renderDropdownItems(text, false); };
+window.toggleDropdownByArrow = function(input, type, id, key) { if (activeInput === input && activeDropdown && activeDropdown.style.display !== 'none') { window.closeDropdown(); } else { input.focus(); setTimeout(() => window.renderDropdownItems(input.value, true), 0); } };
+window.selectDropdownItem = function(val) { if (activeInput && activeMeta) { activeInput.value = val; window.updateProp(activeMeta.type, activeMeta.id, activeMeta.key, val); window.closeDropdown(); } };
+window.closeDropdown = function() { const dropdown = $('global-dropdown'); dropdown.style.display = 'none'; activeDropdown = null; activeInput = null; activeMeta = null; };
+
+class PropertyCalculator { static calculate(shape, dims) { const p = { A:0, I33:0, I22:0, S3:0, S2:0, Zx:0, Zy:0, J:0 }; const D = dims.D||0, B = dims.B||0, tf = dims.tf||0, tw = dims.tw||0; if(shape === 'Rect' || shape === 'Concrete Rectangular') { if(D>0 && B>0) { p.A=B*D; p.I33=B*Math.pow(D,3)/12; p.I22=D*Math.pow(B,3)/12; p.S3 = p.I33 / (D/2); p.S2 = p.I22 / (B/2); p.Zx=B*Math.pow(D,2)/4; p.Zy=D*Math.pow(B,2)/4; } } else if(shape === 'I-Shape') { if(D>0 && B>0 && tf>0 && tw>0) { p.A = 2*B*tf + (D-2*tf)*tw; p.I33 = (B*Math.pow(D,3) - (B-tw)*Math.pow(D-2*tf,3))/12; p.I22 = (2*tf*Math.pow(B,3) + (D-2*tf)*Math.pow(tw,3))/12; p.S3 = p.I33 / (D/2); p.S2 = p.I22 / (B/2); p.Zx = (B*D*D/4) - ((B-tw)*Math.pow(D-2*tf,2)/4); } } else if(shape === 'Box') { if(D>0 && B>0) { const bi = B-2*tw, di = D-2*tf; p.A = B*D - bi*di; p.I33 = (B*Math.pow(D,3) - bi*Math.pow(di,3))/12; p.I22 = (D*Math.pow(B,3) - di*Math.pow(bi,3))/12; p.S3 = p.I33 / (D/2); p.S2 = p.I22 / (B/2); p.Zx = (B*D*D - bi*di*di)/4; } } else if(shape === 'Pipe') { if(D>0) { const di = D-2*tw; p.A = (Math.PI/4)*(D*D - di*di); p.I33 = (Math.PI/64)*(Math.pow(D,4) - Math.pow(di,4)); p.I22 = p.I33; p.S3 = p.I33 / (D/2); p.S2 = p.S3; p.Zx = (Math.pow(D,3) - Math.pow(di,3))/6; } } return p; } }
+class ETABSParser { tokenize(str) { const tokens = []; let current = '', inQuote = false; for(let i=0; i<str.length; i++) { const c = str[i]; if(c === '"') { inQuote = !inQuote; continue; } if(!inQuote && (c === ' ' || c === '\t')) { if(current.length>0){ tokens.push(current); current=''; } } else { current += c; } } if(current.length>0) tokens.push(current); return tokens; } parse(content) { const sections = new Map(); const lines = content.split(/\r?\n/); const getVal = (tokens, keys) => { for (let k of keys) { const i = tokens.findIndex(t => t.toUpperCase() === k.toUpperCase()); if (i !== -1 && i+1 < tokens.length) { let valStr = tokens[i+1].replace(/['"]/g, ''); const v = parseFloat(valStr); return isNaN(v) ? 0 : v; } } return 0; }; lines.forEach(line => { const trimmed = line.trim(); if (!trimmed) return; const tokens = this.tokenize(trimmed); if (tokens.length < 2) return; const upperTokens = tokens.map(t => t.toUpperCase()); let nameIndex = -1; if (upperTokens[0] === 'FRAMESECTION') { nameIndex = 1; } else if (upperTokens[0] === 'FRAME' && upperTokens[1] === 'SECTION') { nameIndex = 2; } if (nameIndex === -1 || nameIndex >= tokens.length) return; const name = normalize(tokens[nameIndex]); let shape = "Unknown"; if (upperTokens.some(t => t.includes('RECT') || t.includes('CONC'))) shape = 'Rect'; else if (upperTokens.some(t => t.includes('I/WIDE') || t.includes('FLANGE'))) shape = 'I-Shape'; else if (upperTokens.some(t => t.includes('BOX') || t.includes('TUBE'))) shape = 'Box'; else if (upperTokens.some(t => t.includes('PIPE') || t.includes('CIRCLE'))) shape = 'Pipe'; const dims = { D:0, B:0, tf:0, tw:0 }; if (shape === "Rect") { dims.D = getVal(tokens, ["t3","Depth","D"]); dims.B = getVal(tokens, ["t2","Width","B"]); } else if (shape === "I-Shape" || shape === "Box") { dims.D = getVal(tokens, ["t3","Depth","D"]); dims.B = getVal(tokens, ["t2","Width","B"]); dims.tf = getVal(tokens, ["tf","TF"]); dims.tw = getVal(tokens, ["tw","TW"]); } else if (shape === "Pipe") { dims.D = getVal(tokens, ["t3","Diameter","D"]); dims.tw = getVal(tokens, ["tw","WallThick"]); } const matIdx = upperTokens.indexOf("MATERIAL"); const material = (matIdx!==-1 && matIdx+1<tokens.length) ? tokens[matIdx+1] : "Unknown"; const props = PropertyCalculator.calculate(shape, dims); sections.set(name, { name: tokens[nameIndex].replace(/['"]/g, ''), shape, dims, material, props }); }); return sections; } }
+class INPParser { parse(content) { const lines = content.split(/\r?\n/); let section = 'HEADER', buffer = []; let readInputNext = 0; AppData.props = { col:[], beam:[], brace:[] }; AppData.reassign = { col:[], beam:[], brace:[] }; AppData.execution = []; AppData.loadCases = []; AppData.loadCombs = []; AppData.rebar = { col:[], beam:[], brace:[] }; AppData.opt = { col:[], beam:[], brace:[] }; AppData.calculatorData = []; for (let line of lines) { const trimmed = line.trim(); if(trimmed === "") continue; if (trimmed.toUpperCase() === "$INPUT.TXT") { readInputNext = 1; continue; } if (readInputNext === 1) { AppData.header.etFile = trimmed; readInputNext = 2; continue; } if (readInputNext === 2) { AppData.header.txtFile = trimmed; readInputNext = 0; continue; } if (trimmed.toUpperCase().includes("DESIGN MEMBER CALCULATOR DATA")) { section = 'CALC_DATA'; buffer=[]; continue; } if (line.toUpperCase().includes("MAIN CONTROL")) { section = 'HEADER'; continue; } if (line.toUpperCase().includes("COLUMN PROPERTIES")) { section = 'PROP_COL'; buffer=[]; continue; } if (line.toUpperCase().includes("BEAM PROPERTIES")) { section = 'PROP_BEAM'; buffer=[]; continue; } if (line.toUpperCase().includes("BRACE PROPERTIES")) { section = 'PROP_BRACE'; buffer=[]; continue; } if (line.toUpperCase().includes("EXECUTION CONTROL")) { section = 'EXECUTION'; continue; } if (line.toUpperCase().includes("LOAD COMBINATION")) { section = 'LOAD_COMB'; continue; } if (line.toUpperCase().includes("LOAD CASE")) { section = 'LOAD_CASE'; continue; } if (line.toUpperCase().includes("COLUMN REBAR")) { section = 'REBAR_COL'; continue; } if (line.toUpperCase().includes("BEAM REBAR")) { section = 'REBAR_BEAM'; continue; } if (line.toUpperCase().includes("BRACE REBAR")) { section = 'REBAR_BRACE'; continue; } if (line.toUpperCase().includes("COLUMN REASSIGNMENT")) { section = 'ASSIGN_COL'; continue; } if (line.toUpperCase().includes("BEAM REASSIGNMENT")) { section = 'ASSIGN_BEAM'; continue; } if (line.toUpperCase().includes("BRACE REASSIGNMENT")) { section = 'ASSIGN_BRACE'; continue; } if (line.toUpperCase().includes("COLUMN OPTIMUN")) { section = 'OPT_COL'; continue; } if (line.toUpperCase().includes("BEAM OPTIMUN")) { section = 'OPT_BEAM'; continue; } if (line.toUpperCase().includes("BRACE OPTIMUN")) { section = 'OPT_BRACE'; continue; } if (line.toUpperCase().includes("MATERIAL PROPERTY")) { section = 'MAT_DEF'; continue; } if (trimmed.toUpperCase().startsWith("$ END")) { section = 'NONE'; buffer=[]; continue; } if (section === 'HEADER') { if (trimmed.includes("SRCOL") || trimmed.includes("PROGRAM")) { AppData.header.prog = trimmed.replace(/^\$\s*/, ''); } } if (section === 'CALC_DATA') { AppData.calculatorData.push(line); continue; } if (!section.startsWith('PROP_')) { if (trimmed.startsWith("$")) continue; } if (section === 'HEADER') { if (line.includes("FILE :")) AppData.header.file = line.split("FILE :")[1].split("UNITS")[0].trim(); if (line.includes("UNITS :")) AppData.header.units = line.split("UNITS :")[1].trim(); } else if (section === 'EXECUTION') { if (/^[\d\s\.]+$/.test(trimmed)) { const vals = trimmed.split(/\s+/).filter(x=>x); vals.forEach((v, idx) => { if(idx < EXEC_KEYS.length) AppData.execution.push({ key:EXEC_KEYS[idx].k, val:v, desc:EXEC_KEYS[idx].d }); }); } } else if (section.startsWith('PROP_')) { const typeCode = section.split('_')[1].toLowerCase(); if(trimmed.startsWith("$")) continue; if (AppData.props[typeCode].length === 0 && buffer.length === 0 && /^[\d\s]+$/.test(trimmed)) continue; buffer.push(trimmed); if (buffer.length >= 3) { if (AppData.props[typeCode]) { const [srcName, rebarId] = buffer[0].split(/\s+/); AppData.props[typeCode].push({ id: AppData.props[typeCode].length+1, srcName, rebarId: rebarId||"", rcName: normalize(buffer[1].split(/\s+/)[0]), ssName: normalize(buffer[2].split(/\s+/)[0]) }); } buffer = []; } } else if (section === 'LOAD_CASE') { if(!trimmed.match(/^\d+$/)) AppData.loadCases.push(trimmed.split(/\s+/)[0]); } else if (section === 'LOAD_COMB') { const tokens = trimmed.split(/\s+/).filter(x=>x); if (tokens.length > 2) { const id = tokens[0]; if(!isNaN(parseFloat(id))) { const factors = tokens.slice(2).map(Number); AppData.loadCombs.push({ id: id, ltyp: tokens[1], factors: factors }); } } } 
+else if (section.startsWith('REBAR_')) { 
+    const t = trimmed.split(/\s+/); 
+    if (t.length >= 5) {
+        const obj = { l:t[0], nx:t[1], ny:t[2], as:t[3], d1:t[4] };
+        if((section === 'REBAR_COL' || section === 'REBAR_BRACE') && t[5]) obj.fc_out = t[5];
+        AppData.rebar[section.split('_')[1].toLowerCase()].push(obj); 
+    }
+} 
+else if (section.startsWith('ASSIGN_')) { const t = trimmed.split(/\s+/); if (t.length >= 7) AppData.reassign[section.split('_')[1].toLowerCase()].push({ type:t[0], startId:t[1], endId:t[2], step:t[3], sty1:t[4], sty2:t[5], p1:t[6], p2:t[7]||"", p3:t[8]||"", p4:t[9]||"" }); } else if (section.startsWith('OPT_')) { if (trimmed.startsWith("$")) continue; const t = trimmed.split(/\s+/); if (t.length >= 2) { const id = t[0]; const sections = t.slice(1).join(' '); AppData.opt[section.split('_')[1].toLowerCase()].push({ id: id, sections: sections }); } } } } }
+
+function drawVerticalDim(ctx, x, topY, bottomY, text, offset) { if(!isFinite(x) || !isFinite(topY) || !isFinite(bottomY)) return; const minY = Math.min(topY, bottomY), maxY = Math.max(topY, bottomY); const dimX = x; const gap=5, tick=4; ctx.save(); ctx.strokeStyle = '#64748b'; ctx.fillStyle = '#1e293b'; ctx.lineWidth = 1; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.beginPath(); ctx.moveTo(dimX, minY); ctx.lineTo(dimX, maxY); ctx.stroke(); ctx.beginPath(); ctx.moveTo(dimX-tick, minY+tick); ctx.lineTo(dimX+tick, minY-tick); ctx.stroke(); ctx.beginPath(); ctx.moveTo(dimX-tick, maxY+tick); ctx.lineTo(dimX+tick, maxY-tick); ctx.stroke(); ctx.translate(dimX + 20, (minY+maxY)/2); ctx.rotate(-Math.PI/2); ctx.textAlign = 'center'; ctx.fillText(text, 0, 0); ctx.restore(); }
+function drawHorizontalDim(ctx, leftX, rightX, y, text, offset) { if(!isFinite(leftX) || !isFinite(rightX) || !isFinite(y)) return; ctx.save(); ctx.strokeStyle = '#64748b'; ctx.fillStyle = '#1e293b'; ctx.lineWidth = 1; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const dimY = y; const tick=4; ctx.beginPath(); ctx.moveTo(leftX, dimY); ctx.lineTo(rightX, dimY); ctx.stroke(); ctx.beginPath(); ctx.moveTo(leftX-tick, dimY+tick); ctx.lineTo(leftX+tick, dimY-tick); ctx.stroke(); ctx.beginPath(); ctx.moveTo(rightX-tick, dimY+tick); ctx.lineTo(rightX+tick, dimY-tick); ctx.stroke(); ctx.fillText(text, (leftX+rightX)/2, dimY-15); ctx.restore(); }
+function drawSectionOnCanvas(canvasId, rcName, ssName, isDetail = false) { const canvas = (typeof canvasId === 'string') ? document.getElementById(canvasId) : canvasId; if (!canvas) return; if (isDetail) { window.currentModalDraw = () => drawSectionOnCanvas(canvasId, rcName, ssName, true); } const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect(); if (rect.width === 0 || rect.height === 0) return; canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr, dpr); ctx.clearRect(0,0,rect.width, rect.height); const rc = AppData.etabsSections.get(normalize(rcName)); const ss = AppData.etabsSections.get(normalize(ssName)); if (!rc && !ss) { ctx.fillStyle = "#ef4444"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Data Not Found", rect.width/2, rect.height/2); return; } let maxD = 0, maxB = 0; if (rc && rc.dims) { maxD = Math.max(maxD, rc.dims.D||0); maxB = Math.max(maxB, rc.dims.B||0); } if (ss && ss.dims) { maxD = Math.max(maxD, ss.dims.D||0); maxB = Math.max(maxB, ss.dims.B||0); } if (maxD === 0) maxD = 100; if (maxB === 0) maxB = 100; const padL = isDetail ? 100 : 15; const padT = isDetail ? 60 : 15; const padR = isDetail ? 80 : 15; const padB = isDetail ? 40 : 15; const availW = rect.width - padL - padR; const availH = rect.height - padT - padB; const scale = Math.min(availW/maxB, availH/maxD) * 0.8; const cx = padL + availW/2; const cy = padT + availH/2; const draw = (sec, color, stroke) => { if(!sec || !sec.dims) return null; const d = sec.dims.D||0, b = sec.dims.B||0, tf = sec.dims.tf||0, tw = sec.dims.tw||0; if(d===0 && b===0) return null; const sD = d*scale, sB = b*scale, sTf = tf*scale, sTw = tw*scale; const l = cx - sB/2, t = cy - sD/2, r = cx + sB/2, bt = cy + sD/2; ctx.fillStyle = color; ctx.strokeStyle = stroke; ctx.lineWidth = isDetail?2:1.5; ctx.beginPath(); if(sec.shape === 'Rect' || sec.shape === 'Box') ctx.rect(l, t, sB, sD); else if(sec.shape === 'I-Shape') { ctx.moveTo(l,t); ctx.lineTo(r,t); ctx.lineTo(r, t+sTf); ctx.lineTo(cx+sTw/2, t+sTf); ctx.lineTo(cx+sTw/2, bt-sTf); ctx.lineTo(r, bt-sTf); ctx.lineTo(r, bt); ctx.lineTo(l, bt); ctx.lineTo(l, bt-sTf); ctx.lineTo(cx-sTw/2, bt-sTf); ctx.lineTo(cx-sTw/2, t+sTf); ctx.lineTo(l, t+sTf); ctx.closePath(); } else if(sec.shape === 'Pipe') ctx.ellipse(cx, cy, sB/2, sD/2, 0, 0, 2*Math.PI); ctx.fill(); ctx.stroke(); if(sec.shape==='Box' && tw>0) { ctx.beginPath(); ctx.rect(l+sTw, t+sTf, sB-2*sTw, sD-2*sTf); ctx.stroke(); } if(sec.shape==='Pipe' && tw>0) { ctx.beginPath(); ctx.ellipse(cx, cy, (d-2*tw)*scale/2, (d-2*tw)*scale/2, 0, 0, 2*Math.PI); ctx.stroke(); } return { l, r, t, b: bt, valD:d, valB:b }; }; let outerBounds = {l:cx,r:cx,t:cy,b:cy,valD:0,valB:0}; if(rc) outerBounds = draw(rc, '#e2e8f0', '#94a3b8'); if(ss) { const sb = draw(ss, '#475569', '#1e293b'); if(!rc) outerBounds = sb; } if(isDetail && outerBounds.valD > 0) { drawVerticalDim(ctx, outerBounds.r + 40, outerBounds.t, outerBounds.b, `D=${outerBounds.valD}`, 0); drawHorizontalDim(ctx, outerBounds.l, outerBounds.r, outerBounds.t - 40, `B=${outerBounds.valB}`, 0); } }
+
+window.switchTab = function(tab) { 
+    // Hide all views
+    document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); 
+    // Deactivate all tabs
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active')); 
+    
+    // Show selected view
+    const view = $(`view-${tab}`); 
+    if(view) view.classList.remove('hidden'); 
+    
+    // Activate selected tab
+    const item = document.querySelector(`.nav-tab[data-tab="${tab}"]`); 
+    if(item) item.classList.add('active'); 
+
+    if (tab === 'props') window.renderProps(); 
+    if (tab === 'reassign') { window.renderReassign('col'); window.renderReassign('beam'); window.renderReassign('brace'); } 
+    if (tab.startsWith('opt-')) { window.renderOpt(tab.split('-')[1]); } 
+    if (tab === 'loads') window.renderLoads(); 
+    if (tab === 'rebar') window.renderRebar(); 
+    if (tab === 'general') window.renderGeneral(); 
+    if (tab === 'calc-data') window.renderCalcData(); 
+};
+window.renderCalcData = function() { const textarea = $('calc-data-input'); if(textarea) { textarea.value = AppData.calculatorData.join('\n'); } }
+window.handleFileLoad = function(input, type) { if(!input.files[0]) return; const reader = new FileReader(); reader.onload = (e) => { if(type === 'INP') { new INPParser().parse(e.target.result); $(`status-inp`).classList.remove('hidden'); $('file-info').innerText = input.files[0].name; window.renderGeneral(); window.switchTab('general'); } else { AppData.etabsSections = new ETABSParser().parse(e.target.result); $(`status-et`).classList.remove('hidden'); if(!$('view-props').classList.contains('hidden')) window.renderProps(); } }; reader.readAsText(input.files[0]); };
+
+window.renderGeneral = function() { $('header-prog').value = AppData.header.prog || ""; $('header-units').value = AppData.header.units || ""; $('header-et').value = AppData.header.etFile || ""; $('header-txt').value = AppData.header.txtFile || ""; $('header-et').onchange = (e) => AppData.header.etFile = e.target.value; $('header-txt').onchange = (e) => AppData.header.txtFile = e.target.value; const con = $('exec-container'); con.innerHTML = ''; AppData.execution.forEach((item, i) => { const div = createEl('div', 'bg-white p-3 border border-gray-200 rounded-lg shadow-sm'); div.innerHTML = `<div class="flex justify-between mb-1"><span class="text-xs font-bold text-blue-600">${item.key}</span><span class="text-[10px] text-gray-400">${item.desc||''}</span></div><input class="mac-input text-center" value="${item.val}" onchange="AppData.execution[${i}].val = this.value">`; con.appendChild(div); }); };
+
+window.renderProps = function() { const grid = $('props-grid'); grid.innerHTML = ''; const filter = $('prop-filter').value; const search = $('prop-search').value.toLowerCase(); let list = []; if (filter === 'ALL' || filter === 'col') list = list.concat(AppData.props.col.map(x=>({...x, _type:'col'}))); if (filter === 'ALL' || filter === 'beam') list = list.concat(AppData.props.beam.map(x=>({...x, _type:'beam'}))); if (filter === 'ALL' || filter === 'brace') list = list.concat(AppData.props.brace.map(x=>({...x, _type:'brace'}))); list.filter(x => x.srcName.toLowerCase().includes(search)).forEach(item => { const card = createEl('div', `prop-card type-${item._type}`); card.innerHTML = ` <div class="card-action-btn" onclick="window.delProp('${item._type}', ${item.id})"><i class="fa-solid fa-trash"></i></div> <div class="flex"> <div class="flex-1 space-y-2"> <div class="flex items-center justify-between pr-6"> <span class="text-xs font-bold bg-gray-100 px-2 py-1 rounded uppercase text-gray-500">${item._type} #${item.id}</span> <div class="flex items-center gap-1"> <span class="text-[10px] text-gray-400 font-bold">R.ID</span> <input class="mac-input w-12 text-center text-xs py-1" value="${item.rebarId}" onchange="window.updateProp('${item._type}', ${item.id}, 'rebarId', this.value)"> </div> </div> <div class="relative"> <input class="mac-input text-lg font-bold text-blue-600 pr-8" value="${item.srcName}" onfocus="window.openDropdown(this, '${item._type}', ${item.id}, 'srcName')" oninput="window.filterDropdown(this.value)" onkeydown="if(event.key==='Enter') this.blur()"> <i class="fa-solid fa-caret-down absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer" onclick="window.toggleDropdownByArrow(this.previousElementSibling, '${item._type}', ${item.id}, 'srcName')"></i> </div> <div class="grid grid-cols-2 gap-2"> <div> <span class="text-[10px] text-gray-400 font-bold">RC</span> <div class="relative"> <input class="mac-input pr-8" value="${item.rcName}" onfocus="window.openDropdown(this, '${item._type}', ${item.id}, 'rcName')" oninput="window.filterDropdown(this.value)" onkeydown="if(event.key==='Enter') this.blur()"> <i class="fa-solid fa-caret-down absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer" onclick="window.toggleDropdownByArrow(this.previousElementSibling, '${item._type}', ${item.id}, 'rcName')"></i> </div> </div> <div> <span class="text-[10px] text-gray-400 font-bold">STEEL</span> <div class="relative"> <input class="mac-input pr-8" value="${item.ssName}" onfocus="window.openDropdown(this, '${item._type}', ${item.id}, 'ssName')" oninput="window.filterDropdown(this.value)" onkeydown="if(event.key==='Enter') this.blur()"> <i class="fa-solid fa-caret-down absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer" onclick="window.toggleDropdownByArrow(this.previousElementSibling, '${item._type}', ${item.id}, 'ssName')"></i> </div> </div> </div> <button onclick="window.showDetail('${item.rcName}', '${item.ssName}')" class="text-xs text-blue-500 hover:underline font-bold mt-1">查看斷面詳圖</button> </div> <div class="preview-box"><canvas id="cvs-${item._type}-${item.id}" class="w-full h-full"></canvas></div> </div>`; grid.appendChild(card); }); requestAnimationFrame(() => { list.filter(x => x.srcName.toLowerCase().includes(search)).forEach(item => { drawSectionOnCanvas(`cvs-${item._type}-${item.id}`, item.rcName, item.ssName, false); }); }); };
+window.updateProp = function(type, id, key, val) { const item = AppData.props[type].find(x => x.id == id); if(item) { item[key] = val; window.renderProps(); } };
+window.addProperty = function() { const type = $('prop-filter').value === 'ALL' ? 'col' : $('prop-filter').value; const newId = (AppData.props[type].length > 0 ? Math.max(...AppData.props[type].map(x=>x.id)) : 0) + 1; AppData.props[type].push({ id: newId, srcName: "NEW_PROP", rebarId: "0", rcName: "", ssName: "" }); window.renderProps(); };
+window.delProp = function(type, id) { AppData.props[type] = AppData.props[type].filter(x => x.id !== id); window.renderProps(); };
+
+window.showDetail = function(rcName, ssName) { $('modal-overlay').classList.remove('hidden'); window.currentModalDraw = () => drawSectionOnCanvas('detail-canvas', rcName, ssName, true); window.currentModalDraw(); requestAnimationFrame(window.currentModalDraw); setTimeout(window.currentModalDraw, 50); setTimeout(window.currentModalDraw, 200); const fillTable = (id, sec) => { const t = $(id); t.innerHTML = ''; if(!sec) { t.innerHTML = '<tr><td colspan="2" class="text-gray-400 italic">無資料 (Not Found)</td></tr>'; return; } const r = (k,v) => `<tr><td>${k}</td><td>${v}</td></tr>`; let html = r('Shape', sec.shape) + r('Material', sec.material); for(let k in sec.dims) { if(sec.dims[k]) html += r(k, sec.dims[k]); } if (sec.props) { html += `<tr><td colspan="2" class="bg-gray-50 text-[10px] text-center font-bold mt-2 py-1">CALCULATED PROPERTIES</td></tr>`; if(sec.props.A) html += r('Area', sec.props.A.toFixed(4)); if(sec.props.I33) html += r('I33 (Major)', sec.props.I33.toFixed(4)); if(sec.props.I22) html += r('I22 (Minor)', sec.props.I22.toFixed(4)); if(sec.props.S3) html += r('S3 (Major)', sec.props.S3.toFixed(4)); if(sec.props.S2) html += r('S2 (Minor)', sec.props.S2.toFixed(4)); if(sec.props.Zx) html += r('Zx (Plastic)', sec.props.Zx.toFixed(4)); if(sec.props.Zy) html += r('Zy (Plastic)', sec.props.Zy.toFixed(4)); } t.innerHTML = html; }; fillTable('modal-table-rc', AppData.etabsSections.get(normalize(rcName))); fillTable('modal-table-ss', AppData.etabsSections.get(normalize(ssName))); };
+window.closeModal = function() { $('modal-overlay').classList.add('hidden'); window.currentModalDraw = null; };
+window.addEventListener('resize', () => { if(window.currentModalDraw && !$('modal-overlay').classList.contains('hidden')) { window.currentModalDraw(); } });
+
+window.renderReassign = function(type) { const tbody = $(`tbody-reassign-${type}`); if (!tbody) return; tbody.innerHTML = ''; AppData.reassign[type].forEach((row, i) => { const tr = createEl('tr'); tr.innerHTML = `<td class="text-center"><i class="fa-solid fa-trash text-gray-300 hover:text-red-500 cursor-pointer" onclick="window.delReassign('${type}', ${i})"></i></td> <td><input value="${row.type}" onchange="AppData.reassign['${type}'][${i}].type=this.value"></td> <td><input value="${row.startId}" onchange="AppData.reassign['${type}'][${i}].startId=this.value"></td> <td><input value="${row.endId}" onchange="AppData.reassign['${type}'][${i}].endId=this.value"></td> <td><input value="${row.step}" onchange="AppData.reassign['${type}'][${i}].step=this.value"></td> <td><input value="${row.sty1}" onchange="AppData.reassign['${type}'][${i}].sty1=this.value"></td> <td><input value="${row.sty2}" onchange="AppData.reassign['${type}'][${i}].sty2=this.value"></td> <td><input value="${row.p1}" class="text-blue-600" onchange="AppData.reassign['${type}'][${i}].p1=this.value"></td> <td><input value="${row.p2}" onchange="AppData.reassign['${type}'][${i}].p2=this.value"></td> <td><input value="${row.p3}" onchange="AppData.reassign['${type}'][${i}].p3=this.value"></td> <td><input value="${row.p4}" onchange="AppData.reassign['${type}'][${i}].p4=this.value"></td>`; tbody.appendChild(tr); }); };
+window.addReassignRow = function(type) { AppData.reassign[type].unshift({ type: "S", startId: "", endId: "", step: "0", sty1: "1F", sty2: "RF", p1: "", p2: "", p3: "", p4: "" }); window.renderReassign(type); };
+window.delReassign = function(type, idx) { AppData.reassign[type].splice(idx, 1); window.renderReassign(type); };
+
+window.renderOpt = function(type) { const tbody = $(`tbody-opt-${type}`); if (!tbody) return; tbody.innerHTML = ''; AppData.opt[type].forEach((row, i) => { const tr = createEl('tr'); tr.innerHTML = `<td class="text-center"><i class="fa-solid fa-trash text-gray-300 hover:text-red-500 cursor-pointer" onclick="window.delOpt('${type}', ${i})"></i></td> <td><input value="${row.id}" class="text-center font-bold" onchange="AppData.opt['${type}'][${i}].id=this.value"></td> <td><input value="${row.sections}" class="text-blue-600 w-full" onchange="AppData.opt['${type}'][${i}].sections=this.value"></td>`; tbody.appendChild(tr); }); };
+window.addOptRow = function(type) { AppData.opt[type].push({id: AppData.opt[type].length+1, sections: ""}); window.renderOpt(type); };
+window.delOpt = function(type, idx) { AppData.opt[type].splice(idx, 1); window.renderOpt(type); };
+
+window.renderLoads = function() {
+    const list = $('load-case-list'); list.innerHTML = '';
+    AppData.loadCombs.forEach(c => { if (!Array.isArray(c.factors)) c.factors = []; while (c.factors.length < AppData.loadCases.length) { c.factors.push(0); } if (c.factors.length > AppData.loadCases.length) { c.factors = c.factors.slice(0, AppData.loadCases.length); } });
+    AppData.loadCases.forEach((c, i) => { const div = document.createElement('div'); div.className = "flex justify-between items-center bg-white p-2 rounded border border-gray-100 shadow-sm"; div.innerHTML = ` <span class="text-xs font-bold text-gray-400 mr-2 w-4 text-center">${i+1}</span> <input class="bg-transparent font-bold text-gray-700 text-sm flex-1 focus:outline-none focus:bg-gray-50 rounded px-1" value="${c}" onchange="window.updateLoadCaseName(${i}, this.value)"> <button onclick="window.delLoadCase(${i})" class="text-gray-300 hover:text-red-500 ml-2" title="刪除"> <i class="fa-solid fa-times"></i> </button> `; list.appendChild(div); });
+    const thead = $('thead-load-comb'); thead.innerHTML = '<tr><th style="width:40px"></th><th>ID</th><th>Type</th>' + AppData.loadCases.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+    const tbody = $('tbody-load-comb'); tbody.innerHTML = '';
+    AppData.loadCombs.forEach((c, i) => { let html = `<td><i class="fa-solid fa-trash text-gray-300 hover:text-red-500 cursor-pointer" onclick="window.delLoadComb(${i})"></i></td><td><input value="${c.id}" class="text-center font-bold" onchange="AppData.loadCombs[${i}].id=this.value"></td><td><input value="${c.ltyp}" class="text-center" onchange="AppData.loadCombs[${i}].ltyp=this.value"></td>`; for(let j=0; j<AppData.loadCases.length; j++) { const val = (c.factors && c.factors[j] !== undefined) ? c.factors[j] : 0; html += `<td><input value="${val.toFixed(4)}" class="text-center ${(val!==0)?'text-blue-600 font-bold':'text-gray-300'}" onchange="const v = parseFloat(this.value); AppData.loadCombs[${i}].factors[${j}] = isNaN(v) ? 0 : v;"></td>`; } tbody.innerHTML += `<tr>${html}</tr>`; });
+};
+window.updateLoadCaseName = function(idx, val) { AppData.loadCases[idx] = val; window.renderLoads(); };
+window.addLoadCase = function() { const newName = "CASE_" + (AppData.loadCases.length + 1); AppData.loadCases.push(newName); AppData.loadCombs.forEach(c => { if (!Array.isArray(c.factors)) c.factors = []; c.factors.push(0); }); window.renderLoads(); };
+window.delLoadCase = function(i) { AppData.loadCases.splice(i, 1); AppData.loadCombs.forEach(c => { if (Array.isArray(c.factors)) c.factors.splice(i, 1); }); window.renderLoads(); };
+window.addLoadComb = function() { AppData.loadCombs.push({ id: AppData.loadCombs.length+1, ltyp: 0, factors: new Array(AppData.loadCases.length).fill(0) }); window.renderLoads(); };
+window.delLoadComb = function(i) { AppData.loadCombs.splice(i, 1); window.renderLoads(); };
+
+window.renderRebar = function() { 
+    ['col', 'beam', 'brace'].forEach(t => { 
+        const b=$(`tbody-rebar-${t}`); 
+        if(b) { 
+            b.innerHTML=''; 
+            AppData.rebar[t].forEach((r,i)=>{ 
+                let row = `<tr><td class="text-center"><i class="fa-solid fa-trash text-gray-300 hover:text-red-500 cursor-pointer" onclick="window.delRebar('${t}',${i})"></i></td>
+                <td><input value="${r.l}" onchange="AppData.rebar['${t}'][${i}].l=this.value"></td>
+                <td><input value="${r.nx}" onchange="AppData.rebar['${t}'][${i}].nx=this.value"></td>
+                <td><input value="${r.ny}" onchange="AppData.rebar['${t}'][${i}].ny=this.value"></td>
+                <td><input value="${r.as}" onchange="AppData.rebar['${t}'][${i}].as=this.value"></td>
+                <td><input value="${r.d1}" onchange="AppData.rebar['${t}'][${i}].d1=this.value"></td>`;
+                if (t === 'col' || t === 'brace') {
+                    row += `<td><input value="${r.fc_out||''}" onchange="AppData.rebar['${t}'][${i}].fc_out=this.value"></td>`;
+                }
+                row += `</tr>`;
+                b.innerHTML+=row; 
+            }); 
+        } 
+    }); 
+};
+window.addRebarRow = function(t) { 
+    const obj = {l:AppData.rebar[t].length+1, nx:0, ny:0, as:0, d1:0};
+    if(t==='col' || t==='brace') obj.fc_out = "";
+    AppData.rebar[t].push(obj); 
+    window.renderRebar(); 
+};
+window.delRebar = function(t,i) { AppData.rebar[t].splice(i,1); window.renderRebar(); };
+
+window.downloadINP = function() {
+    try {
+        const N = "\r\n"; let content = "";
+        content += "$$$$$$$$$$$$$$$$$$  MAIN CONTROL DATA  $$$$$$$$$$$$$$$$$$$$$$$  (always)" + N; content += "$   --------- Program Name and Version ---------- (including \" one line \")" + N; content += `$ ${AppData.header.prog || "SRCOL 9.1"}` + N; content += "$   --------- Heading Data ---------- (including \" two lines \")" + N; content += `  FILE : ${AppData.header.file || "FILE.EXE"}` + N; content += `  ${AppData.header.frame || "ORDINARY MOMENT FRAME"}                         UNITS : ${AppData.header.units || "KG-CM-SECOND"}` + N; content += "$INPUT.TXT" + N;
+        const etName = AppData.header.etFile || "MODEL.$ET"; const txtName = AppData.header.txtFile || "MODEL.TXT"; content += `${etName}` + N; content += `${txtName}` + N;
+        const writeProps = (type, title) => { const arr = AppData.props[type]; content += `$ ${title} PROPERTIES NUMBER` + N; content += `${arr.length}     ` + N; arr.forEach(p => { content += `$${p.id} ` + N; content += `${p.srcName}   ${p.rebarId}` + N; content += `${p.rcName}` + N; content += `${p.ssName}` + N; }); content += `$ END ${title} PROPERTIES NUMBER` + N; }; writeProps('col', 'COLUMN'); writeProps('beam', 'BEAM'); writeProps('brace', 'BRACE');
+        content += "$ LOAD CASE NUMBER" + N; content += `${AppData.loadCases.length}` + N; AppData.loadCases.forEach((lc) => { content += `${lc}` + N; }); content += "$ END LOAD CASE NUMBER" + N;
+        content += "$ Execution Control Data" + N; content += "$   --------- Execution Control Data ---------- (including \" one line \")" + N; content += "$NOC  NOB  NLC  NRMP  NRCP  NRBP NRBRP NOPC  OP_C  NOPB  OP_B   Fux   Fuy  ALFAY  NOBR ITYP EQ-X  EQ-Y" + N; let execLine = ""; EXEC_KEYS.forEach(k => { const found = AppData.execution.find(e => e.key === k.k); execLine += (found ? found.val : "0") + "  "; }); content += `  ${execLine}` + N; content += "$ END Execution Control Data" + N;
+        const writeRebar = (type, title) => { const arr = AppData.rebar[type]; content += `$ ${title} REBAR DATA` + N; if(type === 'col' || type === 'brace') content += `$ NO  NX  NY  AS  D1 FC_OUT` + N; else content += `$ NO  NX  NY  AS  D1` + N; arr.forEach(r => { content += `  ${r.l}   ${r.nx}   ${r.ny}  ${r.as}  ${r.d1}`; if((type === 'col' || type === 'brace') && r.fc_out) content += `  ${r.fc_out}`; content += N; }); content += `$ END ${title} REBAR DATA` + N; }; writeRebar('col', 'Column'); writeRebar('beam', 'Beam'); writeRebar('brace', 'Brace');
+        content += "$" + N; content += "$$$$$$$$$$$$$$$$$$  LOAD COMBINATION DATA  $$$$$$$$$$  (only if NLC > 0)" + N; content += "$ Load Combination Data" + N; let combHeader = "$ L  LTYP"; AppData.loadCases.forEach(lc => { combHeader += `        ${lc.substring(0,4)}`; }); content += combHeader + N; AppData.loadCombs.forEach(lc => { let line = `   ${lc.id}   ${lc.ltyp}`; lc.factors.forEach(f => { line += `    ${f.toFixed(4)}`; }); content += line + N; }); content += "$ END Load Combination Data" + N;
+        const writeAssign = (type, title) => { const arr = AppData.reassign[type]; content += `$ ${title} Reassignment Data` + N; content += `$ TYPE START END STEP STY1 STY2 P1 P2 P3 P4` + N; arr.forEach(r => { const line = [r.type, r.startId, r.endId, r.step, r.sty1, r.sty2, r.p1, r.p2, r.p3, r.p4].filter(x => x !== "").join("  "); content += `   ${line}` + N; }); content += N; content += `$ END ${title} Reassignment Data` + N; }; writeAssign('col', 'Column'); writeAssign('beam', 'Beam'); writeAssign('brace', 'Brace');
+        const writeOpt = (type, title) => { const arr = AppData.opt[type]; content += `$ ${title} OPTIMUN DATA` + N; arr.forEach(r => { content += `${r.id}   ${r.sections}` + N; }); content += `$ END ${title} OPTIMUN DATA` + N; }; writeOpt('col', 'COLUMN'); writeOpt('beam', 'BEAM'); writeOpt('brace', 'BRACE');
+        content += "$ Design Member calculator Data" + N; AppData.calculatorData.forEach(line => { content += line + N; }); content += "$ END Design Member calculator Data" + N;
+        alert("正在準備下載檔案...");
+        const blob = new Blob([content], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "EXPORT.INP"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (e) { alert("匯出失敗: " + e.message); console.error(e); }
+};
+
+window.switchTab('general');
+window.toggleSection = function(id) { const el = $(id); if (el) el.classList.toggle('hidden'); };
+</script>
+</body>
+</html>
