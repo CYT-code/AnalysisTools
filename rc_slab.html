@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RC樓版自動化設計計算書</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        .input-group { transition: all 0.3s ease; }
+        .input-group:focus-within { transform: translateY(-1px); }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: bold;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            background-color: #eff6ff;
+        }
+
+        .batch-input {
+            width: 100%;
+            padding: 4px 0;
+            border: 1px solid transparent;
+            background: transparent;
+            border-radius: 4px;
+            font-size: 13px;
+            text-align: center;
+        }
+        .batch-input:focus {
+            border-color: #3b82f6;
+            background: white;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .batch-select {
+            width: 100%;
+            padding: 4px 0;
+            border: 1px solid transparent;
+            background: transparent;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .batch-select:focus {
+            border-color: #3b82f6;
+            background: white;
+            outline: none;
+        }
+        
+        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .rebar-row:nth-child(even) { background-color: #f8fafc; }
+        .grid-table th, .grid-table td { border: 1px solid #e2e8f0; }
+        .grid-table th { background-color: #f1f5f9; }
+        
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.2s, transform 0.2s; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+
+    <!-- Header -->
+    <div class="max-w-7xl w-full bg-white rounded-t-2xl shadow-sm border-b border-gray-200 flex justify-between items-center px-6 py-2">
+        <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-building text-blue-600"></i>
+            RC樓版設計計算器
+        </h1>
+        <div class="flex gap-2">
+            <button onclick="switchTab('single')" id="tab-single" class="tab-btn active"><i class="fa-solid fa-calculator mr-2"></i>單板試算</button>
+            <button onclick="switchTab('batch')" id="tab-batch" class="tab-btn"><i class="fa-solid fa-list-check mr-2"></i>批次設計</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl w-full bg-white rounded-b-2xl shadow-xl overflow-hidden min-h-[600px] relative">
+        
+        <!-- SINGLE MODE -->
+        <div id="view-single" class="flex flex-col md:flex-row h-full transition-opacity duration-300">
+            <div class="w-full md:w-4/12 bg-slate-50 border-r border-gray-100 p-6 overflow-y-auto custom-scroll max-h-[85vh]">
+                <div class="space-y-5">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-500 mb-3 border-b pb-2">基本參數</h3>
+                        <div class="input-group mb-3">
+                            <label class="block text-xs text-slate-600 mb-1">編號</label>
+                            <input type="text" id="s_id" class="w-full p-2 border rounded text-sm font-bold" value="S1">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-[10px] text-slate-500">短向 S (cm)</label><input type="number" id="s_s" class="w-full p-2 border rounded text-sm" value="400"></div>
+                            <div><label class="text-[10px] text-slate-500">長向 L (cm)</label><input type="number" id="s_l" class="w-full p-2 border rounded text-sm" value="500"></div>
+                            <div><label class="text-[10px] text-slate-500">厚度 T (cm)</label><input type="number" id="s_t" class="w-full p-2 border rounded text-sm" value="15"></div>
+                            <div><label class="text-[10px] text-slate-500">保護層 c (cm)</label><input type="number" id="s_c" class="w-full p-2 border rounded text-sm" value="2.0"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-500 mb-3 border-b pb-2">載重與材料</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div><label class="text-[10px] text-slate-500">WD (kgf/m²)</label><input type="number" id="s_wd" class="w-full p-2 border rounded text-sm" value="100"></div>
+                            <div><label class="text-[10px] text-slate-500">WLL (kgf/m²)</label><input type="number" id="s_wll" class="w-full p-2 border rounded text-sm" value="200"></div>
+                            <div><label class="text-[10px] text-slate-500">f'c (kgf/cm²)</label><input type="number" id="s_fc" class="w-full p-2 border rounded text-sm" value="280"></div>
+                            <div><label class="text-[10px] text-slate-500">fy (kgf/cm²)</label><input type="number" id="s_fy" class="w-full p-2 border rounded text-sm" value="4200"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-500 mb-3 border-b pb-2">邊界條件</h3>
+                        <select id="s_bound" class="w-full p-2 border rounded text-sm">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+
+                    <button onclick="runSingleCalc()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95">
+                        <i class="fa-solid fa-calculator mr-2"></i>開始計算
+                    </button>
+                </div>
+            </div>
+
+            <div class="w-full md:w-8/12 p-8 bg-white overflow-y-auto custom-scroll max-h-[85vh]">
+                <div id="single-empty" class="h-full flex flex-col items-center justify-center text-slate-400">
+                    <i class="fa-solid fa-pen-ruler text-6xl mb-4 opacity-20"></i>
+                    <p>請輸入參數並點擊計算</p>
+                </div>
+                <div id="single-result" class="hidden space-y-6">
+                    <div class="flex justify-between items-end border-b pb-4">
+                        <div>
+                            <span class="bg-slate-800 text-white px-2 py-1 rounded text-xs" id="res_id">S1</span>
+                            <span class="text-3xl font-bold text-slate-800 ml-2" id="res_ratio">m=0.8</span>
+                        </div>
+                        <div class="text-right text-xs text-slate-500">
+                            <div>Wu = <b id="res_wu" class="text-blue-600">0</b> kgf/m²</div>
+                            <div id="res_comb">--</div>
+                        </div>
+                    </div>
+                    
+                    <div id="res_cards" class="space-y-6"></div> 
+
+                    <div class="flex flex-wrap gap-2 justify-end pt-6 border-t mt-6">
+                        <button onclick="showDetailModal()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded text-sm font-bold hover:bg-slate-200"><i class="fa-solid fa-eye mr-2"></i>查看計算過程</button>
+                        <button onclick="generateReport([currentSingleResult], true)" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700"><i class="fa-solid fa-print mr-2"></i>列印 / PDF</button>
+                        <button onclick="generateDoc([currentSingleResult], true)" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-green-700"><i class="fa-solid fa-file-word mr-2"></i>輸出文件 (Word/Doc)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BATCH MODE -->
+        <div id="view-batch" class="hidden flex flex-col h-full">
+            <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center">
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('slabFileInput').click()" class="px-3 py-1.5 bg-slate-700 text-white rounded text-xs hover:bg-slate-800 shadow-sm"><i class="fa-solid fa-file-import mr-1"></i>匯入 .slab</button>
+                    <button onclick="exportBatchData()" class="px-3 py-1.5 bg-slate-100 border border-slate-300 rounded text-xs hover:bg-slate-200 text-slate-700"><i class="fa-solid fa-file-export mr-1"></i>匯出 .slab</button>
+                    <input type="file" id="slabFileInput" accept=".slab,.txt" class="hidden" onchange="importBatchData(this)">
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="addBatchRow()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs hover:bg-slate-50 text-slate-700"><i class="fa-solid fa-plus mr-1"></i>新增列</button>
+                    <button onclick="clearBatch()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs hover:bg-red-50 text-red-600"><i class="fa-solid fa-trash mr-1"></i>清空</button>
+                    <button onclick="runBatchCalc(true)" class="px-4 py-1.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 shadow-sm ml-1"><i class="fa-solid fa-file-word mr-1"></i>輸出 Word</button>
+                    <button onclick="runBatchCalc(false)" class="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 shadow-sm"><i class="fa-solid fa-print mr-1"></i>批次設計 & 列印</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-auto custom-scroll p-0">
+                <table class="w-full text-left border-collapse min-w-[1000px]">
+                    <thead class="bg-slate-100 text-slate-600 text-xs font-bold sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="p-3 border-b border-r w-10 text-center">#</th>
+                            <th class="p-3 border-b w-20">編號</th>
+                            <th class="p-3 border-b w-20">短向 S<br><span class="text-[10px] font-normal">(cm)</span></th>
+                            <th class="p-3 border-b w-20">長向 L<br><span class="text-[10px] font-normal">(cm)</span></th>
+                            <th class="p-3 border-b w-16">厚度 T<br><span class="text-[10px] font-normal">(cm)</span></th>
+                            <th class="p-3 border-b w-16">保護層<br><span class="text-[10px] font-normal">(cm)</span></th>
+                            <th class="p-3 border-b w-20">WD<br><span class="text-[10px] font-normal">(kgf/m²)</span></th>
+                            <th class="p-3 border-b w-20">WLL<br><span class="text-[10px] font-normal">(kgf/m²)</span></th>
+                            <th class="p-3 border-b w-20">f'c<br><span class="text-[10px] font-normal">(kgf/cm²)</span></th>
+                            <th class="p-3 border-b w-20">fy<br><span class="text-[10px] font-normal">(kgf/cm²)</span></th>
+                            <th class="p-3 border-b w-40">邊界條件</th>
+                            <th class="p-3 border-b w-12 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batch-tbody" class="text-sm divide-y divide-slate-100 bg-white"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform scale-90 transition-transform duration-300">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                <h3 class="font-bold text-lg text-slate-700">計算過程範例</h3>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div id="modalContent" class="p-8 overflow-y-auto font-mono text-sm text-slate-600"></div>
+        </div>
+    </div>
+
+<script>
+const REBAR = { 3: {db:0.953,area:0.7133}, 4: {db:1.27,area:1.267}, 5: {db:1.56,area:1.986}, 6: {db:1.91,area:2.865}, 7: {db:2.22,area:3.871}, 8: {db:2.54,area:5.067}, 10: {db:3.22,area:8.143} };
+
+// Coefficient Table (unchanged)
+const coefData = [[0.50,0.083,0.062,0.085,0.064,0.090,0.068,0.098,0.074,0.055,0.083],[0.51,0.081,0.060,0.083,0.063,0.089,0.067,0.097,0.073,0.055,0.083],[0.52,0.079,0.059,0.082,0.062,0.088,0.066,0.096,0.073,0.055,0.083],[0.53,0.077,0.057,0.080,0.060,0.086,0.065,0.096,0.072,0.054,0.082],[0.54,0.075,0.056,0.079,0.059,0.085,0.064,0.095,0.072,0.054,0.082],[0.55,0.073,0.054,0.077,0.058,0.084,0.063,0.094,0.071,0.054,0.082],[0.56,0.071,0.053,0.075,0.057,0.083,0.062,0.093,0.070,0.054,0.081],[0.57,0.069,0.051,0.074,0.056,0.082,0.061,0.092,0.070,0.054,0.081],[0.58,0.067,0.050,0.072,0.054,0.080,0.061,0.092,0.069,0.053,0.081],[0.59,0.065,0.048,0.071,0.053,0.079,0.060,0.091,0.069,0.053,0.080],[0.60,0.063,0.047,0.069,0.052,0.078,0.059,0.090,0.068,0.053,0.080],[0.61,0.062,0.046,0.068,0.051,0.077,0.058,0.089,0.067,0.052,0.079],[0.62,0.061,0.046,0.067,0.051,0.076,0.058,0.088,0.067,0.052,0.078],[0.63,0.061,0.045,0.067,0.050,0.076,0.057,0.088,0.066,0.051,0.078],[0.64,0.060,0.045,0.066,0.050,0.075,0.057,0.087,0.066,0.051,0.077],[0.65,0.059,0.044,0.065,0.049,0.074,0.056,0.086,0.065,0.050,0.076],[0.66,0.058,0.043,0.064,0.049,0.073,0.055,0.085,0.064,0.050,0.075],[0.67,0.058,0.043,0.064,0.048,0.073,0.055,0.084,0.064,0.049,0.074],[0.68,0.057,0.042,0.063,0.048,0.072,0.054,0.084,0.063,0.049,0.074],[0.69,0.057,0.042,0.063,0.047,0.072,0.054,0.083,0.063,0.048,0.073],[0.70,0.056,0.041,0.062,0.047,0.071,0.053,0.082,0.062,0.048,0.072],[0.71,0.055,0.041,0.061,0.046,0.070,0.053,0.081,0.061,0.047,0.071],[0.72,0.054,0.040,0.061,0.046,0.069,0.052,0.080,0.061,0.047,0.071],[0.73,0.054,0.040,0.060,0.045,0.069,0.052,0.080,0.060,0.046,0.070],[0.74,0.053,0.039,0.060,0.045,0.068,0.051,0.079,0.060,0.046,0.070],[0.75,0.052,0.039,0.059,0.044,0.067,0.051,0.078,0.059,0.045,0.069],[0.76,0.051,0.038,0.058,0.043,0.066,0.050,0.077,0.058,0.045,0.068],[0.77,0.050,0.038,0.057,0.043,0.065,0.050,0.076,0.058,0.044,0.067],[0.78,0.050,0.037,0.057,0.042,0.065,0.049,0.076,0.057,0.044,0.067],[0.79,0.049,0.037,0.056,0.042,0.064,0.049,0.075,0.057,0.043,0.066],[0.80,0.048,0.036,0.055,0.041,0.063,0.048,0.074,0.056,0.043,0.065],[0.81,0.047,0.035,0.054,0.041,0.062,0.047,0.073,0.055,0.042,0.064],[0.82,0.046,0.035,0.054,0.040,0.062,0.047,0.072,0.055,0.042,0.063],[0.83,0.046,0.034,0.053,0.040,0.061,0.046,0.072,0.054,0.041,0.063],[0.84,0.045,0.034,0.053,0.039,0.061,0.046,0.071,0.054,0.041,0.062],[0.85,0.044,0.033,0.052,0.039,0.060,0.045,0.070,0.053,0.040,0.061],[0.86,0.043,0.032,0.051,0.038,0.059,0.044,0.069,0.052,0.040,0.060],[0.87,0.043,0.032,0.050,0.038,0.058,0.044,0.068,0.052,0.039,0.060],[0.88,0.042,0.031,0.050,0.037,0.058,0.043,0.068,0.051,0.039,0.059],[0.89,0.042,0.031,0.049,0.037,0.057,0.043,0.067,0.051,0.038,0.059],[0.90,0.041,0.030,0.048,0.036,0.056,0.042,0.066,0.050,0.038,0.058],[0.91,0.040,0.030,0.047,0.036,0.055,0.042,0.065,0.049,0.037,0.057],[0.92,0.039,0.029,0.047,0.035,0.055,0.041,0.064,0.049,0.037,0.056],[0.93,0.039,0.029,0.046,0.035,0.054,0.041,0.064,0.048,0.036,0.056],[0.94,0.038,0.028,0.046,0.034,0.054,0.040,0.063,0.048,0.036,0.055],[0.95,0.037,0.028,0.045,0.034,0.053,0.040,0.062,0.047,0.035,0.054],[0.96,0.036,0.027,0.044,0.033,0.052,0.039,0.061,0.046,0.035,0.053],[0.97,0.035,0.027,0.043,0.033,0.051,0.039,0.060,0.046,0.034,0.052],[0.98,0.035,0.026,0.043,0.032,0.051,0.038,0.060,0.045,0.034,0.052],[0.99,0.034,0.026,0.042,0.032,0.050,0.038,0.059,0.045,0.033,0.051],[1.00,0.033,0.025,0.041,0.031,0.049,0.037,0.058,0.044,0.033,0.050]];
+
+// Updated Boundary Options with Codes 0~5
+const boundaryOptions = [
+    {v:'INTERIOR', t:'0: 四邊連續 / 兩端連續'},
+    {v:'1-EDGE', t:'1: 一邊不連續 / 一端不連續'},
+    {v:'2-EDGE', t:'2: 兩邊不連續 / 兩端不連續'},
+    {v:'3-EDGE', t:'3: 三邊不連續'},
+    {v:'4-EDGE', t:'4: 四邊不連續'},
+    {v:'CANTILEVER', t:'5: 懸臂版'}
+];
+
+let currentSingleResult = null; 
+
+// Initial Population
+window.onload = function() {
+    const sSelect = document.getElementById('s_bound');
+    sSelect.innerHTML = boundaryOptions.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+    if(document.getElementById('batch-tbody').children.length === 0) addBatchRow();
+};
+
+function switchTab(mode) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-'+mode).classList.add('active');
+    
+    if(mode === 'single'){
+        document.getElementById('view-single').classList.remove('hidden');
+        document.getElementById('view-batch').classList.add('hidden');
+    } else {
+        document.getElementById('view-single').classList.add('hidden');
+        document.getElementById('view-batch').classList.remove('hidden');
+    }
+}
+
+function runSingleCalc() {
+    const data = {
+        slabId: document.getElementById('s_id').value || 'S1',
+        s_cm: parseFloat(document.getElementById('s_s').value),
+        l_cm: parseFloat(document.getElementById('s_l').value),
+        thickness: parseFloat(document.getElementById('s_t').value),
+        cover: parseFloat(document.getElementById('s_c').value),
+        wd: parseFloat(document.getElementById('s_wd').value) || 0,
+        wll: parseFloat(document.getElementById('s_wll').value) || 0,
+        fc: parseFloat(document.getElementById('s_fc').value),
+        fy: parseFloat(document.getElementById('s_fy').value),
+        type: document.getElementById('s_bound').value
+    };
+
+    if(!validateData(data)) return;
+
+    currentSingleResult = calculateSlab(data);
+    renderSingleResult(currentSingleResult);
+}
+
+function addBatchRow(data = null) {
+    const tbody = document.getElementById('batch-tbody');
+    const idx = tbody.children.length + 1;
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50 transition-colors";
+    
+    const d = data || {
+        slabId: 'S'+idx, s_cm: 400, l_cm: 500, thickness: 15, cover: 2.0,
+        wd: 100, wll: 200, fc: 280, fy: 4200, type: 'INTERIOR'
+    };
+    
+    const cell = (type, val) => `<td><input type="${type}" class="batch-input" value="${val}"></td>`;
+    const optionsHtml = boundaryOptions.map(o => `<option value="${o.v}" ${o.v===d.type?'selected':''}>${o.t}</option>`).join('');
+
+    tr.innerHTML = `
+        <td class="p-2 text-center text-slate-400 text-xs">${idx}</td>
+        ${cell('text', d.slabId)}
+        ${cell('number', d.s_cm)}
+        ${cell('number', d.l_cm)}
+        ${cell('number', d.thickness)}
+        ${cell('number', d.cover)}
+        ${cell('number', d.wd)}
+        ${cell('number', d.wll)}
+        ${cell('number', d.fc)}
+        ${cell('number', d.fy)}
+        <td class="p-2"><select class="batch-select">${optionsHtml}</select></td>
+        <td class="p-2 text-center"><button onclick="this.closest('tr').remove()" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function clearBatch() {
+    if(confirm('確定清空所有資料?')) {
+        const tbody = document.getElementById('batch-tbody');
+        tbody.innerHTML = '';
+        addBatchRow();
+    }
+}
+
+function exportBatchData() {
+    const rows = document.querySelectorAll('#batch-tbody tr');
+    let content = "# 備註：邊界條件代碼說明\n# 0: 四邊連續 / 兩端連續\n# 1: 一邊不連續 / 一端不連續\n# 2: 兩邊不連續 / 兩端不連續\n# 3: 三邊不連續\n# 4: 四邊不連續\n# 5: 懸臂版\n編號\t短向S(cm)\t長向L(cm)\t厚度T(cm)\t保護層(cm)\tWD(kgf/m²)\tWLL(kgf/m²)\tf'c(kgf/cm²)\tfy(kgf/cm²)\t邊界條件(0~5)\n";
+
+    rows.forEach(tr => {
+        const inputs = tr.querySelectorAll('input, select');
+        let typeNum = 0; 
+        switch(inputs[9].value) {
+            case 'INTERIOR': typeNum = 0; break;
+            case '1-EDGE': typeNum = 1; break;
+            case '2-EDGE': typeNum = 2; break;
+            case '3-EDGE': typeNum = 3; break;
+            case '4-EDGE': typeNum = 4; break;
+            case 'CANTILEVER': typeNum = 5; break;
+        }
+
+        const line = [
+            inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value,
+            inputs[5].value, inputs[6].value, inputs[7].value, inputs[8].value, typeNum
+        ].join('\t');
+        content += line + "\n";
+    });
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'slab_design_data.slab';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importBatchData(input) {
+    const file = input.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/);
+        const tbody = document.getElementById('batch-tbody');
+        tbody.innerHTML = ''; 
+        
+        let rowCount = 0;
+        lines.forEach(line => {
+            line = line.trim();
+            if(!line || line.startsWith('#') || line.startsWith('編號')) return;
+
+            const parts = line.split(/\t+/);
+            if(parts.length < 10) return;
+
+            let typeVal = 'INTERIOR';
+            switch(parts[9].trim()) {
+                case '0': typeVal = 'INTERIOR'; break;
+                case '1': typeVal = '1-EDGE'; break;
+                case '2': typeVal = '2-EDGE'; break;
+                case '3': typeVal = '3-EDGE'; break;
+                case '4': typeVal = '4-EDGE'; break;
+                case '5': typeVal = 'CANTILEVER'; break;
+            }
+
+            addBatchRow({
+                slabId: parts[0], s_cm: parts[1], l_cm: parts[2], thickness: parts[3], cover: parts[4],
+                wd: parts[5], wll: parts[6], fc: parts[7], fy: parts[8], type: typeVal
+            });
+            rowCount++;
+        });
+        
+        if(rowCount === 0) addBatchRow();
+        input.value = ''; 
+    };
+    reader.readAsText(file);
+}
+
+function runBatchCalc(isDoc) {
+    const rows = document.querySelectorAll('#batch-tbody tr');
+    const results = [];
+    
+    for(let tr of rows) {
+        const inputs = tr.querySelectorAll('input, select');
+        const data = {
+            slabId: inputs[0].value,
+            s_cm: parseFloat(inputs[1].value),
+            l_cm: parseFloat(inputs[2].value),
+            thickness: parseFloat(inputs[3].value),
+            cover: parseFloat(inputs[4].value),
+            wd: parseFloat(inputs[5].value) || 0,
+            wll: parseFloat(inputs[6].value) || 0,
+            fc: parseFloat(inputs[7].value),
+            fy: parseFloat(inputs[8].value),
+            type: inputs[9].value
+        };
+        if(validateData(data, true)) results.push(calculateSlab(data));
+    }
+    
+    if(results.length > 0) {
+        if(isDoc) generateDoc(results, false); 
+        else generateReport(results, false);
+    } else {
+        alert('無有效數據可計算');
+    }
+}
+
+function validateData(d, silent=false) {
+    if(!d.s_cm || !d.l_cm || !d.thickness || !d.fc || !d.fy || d.s_cm<=0 || d.l_cm<=0 || d.thickness<=0) {
+        if(!silent) alert('請輸入完整的正數設計參數');
+        return false;
+    }
+    return true;
+}
+
+function calculateSlab(d) {
+    let s = d.s_cm / 100; // m
+    let l = d.l_cm / 100; // m
+    let short = Math.min(s, l);
+    let long = Math.max(s, l);
+    
+    const selfWeightKg = 24 * d.thickness; 
+    const totalDL = selfWeightKg + d.wd;
+    const comb1 = 1.4 * totalDL;
+    const comb2 = 1.2 * totalDL + 1.6 * d.wll;
+    const wu = Math.max(comb1, comb2);
+
+    let ratio = short / long;
+    let roundedRatio = Math.round(ratio * 100) / 100;
+    
+    let shortCoefs = { neg: 0, pos: 0 };
+    let longCoefs = { neg: 0, pos: 0 };
+    let mode = "TWO_WAY"; 
+
+    if (d.type === 'CANTILEVER') {
+        mode = "CANTILEVER";
+        shortCoefs.neg = 0.5; 
+        shortCoefs.pos = 0;
+    } else if (ratio < 0.5) {
+        mode = "ONE_WAY";
+        // One-way Logic (0, 1, 2)
+        switch(d.type) {
+            case 'INTERIOR': // 0
+                shortCoefs.pos = 1/14; shortCoefs.neg = 1/11; break;
+            case '1-EDGE':   // 1
+            case '3-EDGE':   // Fallback map
+                shortCoefs.pos = 1/14; shortCoefs.neg = 1/10; break;
+            case '2-EDGE':   // 2
+            case '4-EDGE':   // Fallback map
+            default:
+                shortCoefs.pos = 1/8;  shortCoefs.neg = 0; break;
+        }
+    } else {
+        mode = "TWO_WAY";
+        let index = Math.round((roundedRatio - 0.50) * 100);
+        if (index < 0) index = 0;
+        if (index >= coefData.length) index = coefData.length - 1;
+        const shortRow = coefData[index];
+        const longRow = coefData[coefData.length - 1]; 
+        
+        shortCoefs = getCoeffsFromRow(shortRow, d.type);
+        longCoefs = getCoeffsFromRow(longRow, d.type);
+    }
+
+    const m_s_n = (shortCoefs.neg * wu * short * short) / 1000;
+    const m_s_p = (shortCoefs.pos * wu * short * short) / 1000;
+    const m_l_n = (longCoefs.neg * wu * short * short) / 1000; 
+    const m_l_p = (longCoefs.pos * wu * short * short) / 1000; 
+
+    const rebars_s_n = calcRebars(m_s_n, d.thickness, d.cover, d.fc, d.fy, true);
+    const rebars_s_p = calcRebars(m_s_p, d.thickness, d.cover, d.fc, d.fy, true);
+    const rebars_l_n = calcRebars(m_l_n, d.thickness, d.cover, d.fc, d.fy, false);
+    const rebars_l_p = calcRebars(m_l_p, d.thickness, d.cover, d.fc, d.fy, false);
+
+    return {
+        input: d,
+        calcs: { s, l, wu, totalDL, mode, ratio: roundedRatio, comb: (comb1 > comb2) ? '1.4D' : '1.2D+1.6L' },
+        results: {
+            s_n: { title: "短向負彎矩", coef: shortCoefs.neg, mu: m_s_n, rebars: rebars_s_n },
+            s_p: { title: "短向正彎矩", coef: shortCoefs.pos, mu: m_s_p, rebars: rebars_s_p },
+            l_n: { title: "長向負彎矩", coef: longCoefs.neg, mu: m_l_n, rebars: rebars_l_n },
+            l_p: { title: "長向正彎矩", coef: longCoefs.pos, mu: m_l_p, rebars: rebars_l_p }
+        }
+    };
+}
+
+function getCoeffsFromRow(row, type) {
+    switch(type) {
+        case 'INTERIOR': return { neg: row[1], pos: row[2] };
+        case '1-EDGE':   return { neg: row[3], pos: row[4] };
+        case '2-EDGE':   return { neg: row[5], pos: row[6] };
+        case '3-EDGE':   return { neg: row[7], pos: row[8] };
+        case '4-EDGE':   return { neg: row[9], pos: row[10] };
+        default: return { neg:0, pos:0 };
+    }
+}
+
+function calcRebars(Mu_tfm, T, c, fc, fy, isShort) {
+    // If moment is 0 (e.g. 1-way long span, or simply supported neg), return temperature steel only
+    const b = 100;
+    const phi = 0.9;
+    const maxS = Math.min(3 * T, 45);
+    const tempRatio = (fy >= 4200) ? 0.0018 : 0.0020;
+    const minAs = tempRatio * b * T;
+    
+    let valid = [];
+    const sizes = [3, 4, 5, 6, 7, 8, 10];
+    const Mu_kgfcm = Mu_tfm * 1000 * 100;
+
+    for (let size of sizes) {
+        const { db, area } = REBAR[size];
+        const d = T - c - (isShort ? 0.5 : 1.5) * db;
+        
+        if (d <= 0) continue;
+
+        let As_req = 0;
+        let Rn = 0;
+        let rho = 0;
+        let m = fy / (0.85 * fc);
+
+        if (Mu_tfm > 0) {
+            Rn = Mu_kgfcm / (phi * b * d * d);
+            const term = 1 - (2 * m * Rn) / fy;
+            if (term <= 0) continue; // Section insufficient
+            rho = (1 / m) * (1 - Math.sqrt(term));
+            As_req = rho * b * d;
+        }
+
+        const As_final = Math.max(As_req, minAs);
+        const s_calc = (area * 100) / As_final;
+        const s_final = Math.floor(Math.min(s_calc, maxS));
+
+        if (s_final >= 8) {
+            valid.push({ 
+                size, d: d.toFixed(2), spacing: s_final, 
+                isTemp: As_req < minAs, 
+                Rn: Rn, rho: rho, As_req: As_req, As_min: minAs 
+            });
+            if (valid.length >= 3) break; 
+        }
+    }
+    return valid;
+}
+
+function renderSingleResult(res) {
+    const { input, calcs, results } = res;
+    
+    document.getElementById('single-empty').classList.add('hidden');
+    document.getElementById('single-result').classList.remove('hidden');
+    
+    document.getElementById('res_id').innerText = input.slabId;
+    document.getElementById('res_ratio').innerText = `m=${calcs.ratio.toFixed(2)}`;
+    document.getElementById('res_wu').innerText = calcs.wu.toFixed(0);
+    document.getElementById('res_comb').innerText = calcs.comb;
+
+    const box = document.getElementById('res_cards');
+    box.innerHTML = '';
+    
+    box.innerHTML += renderResultCard('短向設計 (Short Span)', 'border-blue-500', results.s_n, results.s_p);
+    
+    // Always show long span for 2-way or 1-way (temp only) unless Cantilever
+    if(calcs.mode !== 'CANTILEVER') {
+        box.innerHTML += renderResultCard('長向設計 (Long Span)', 'border-purple-500', results.l_n, results.l_p);
+    }
+}
+
+function renderResultCard(title, borderColor, resNeg, resPos) {
+    const rows = (res) => {
+        if(!res || res.rebars.length === 0) return `<tr><td colspan="3" class="p-2 text-center text-red-400 text-xs border border-slate-200">無合適配筋 (間距<8cm或斷面不足)</td></tr>`;
+        return res.rebars.map(r => `
+            <tr class="border-b border-slate-200 last:border-0">
+                <td class="p-2 text-blue-600 font-bold border-r border-slate-200">#${r.size}</td>
+                <td class="p-2 text-gray-500 border-r border-slate-200">${r.d}</td>
+                <td class="p-2 font-bold">@${r.spacing}</td>
+            </tr>
+        `).join('');
+    };
+
+    const section = (name, color, icon, data) => `
+        <div class="flex-1 bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div class="bg-${color}-50 px-3 py-2 border-b border-${color}-100 flex justify-between items-center">
+                <span class="text-${color}-700 font-bold text-sm"><i class="fa-solid ${icon} mr-1"></i>${name}</span>
+                <span class="text-xs text-gray-400">Mu: <b>${data.mu.toFixed(3)}</b></span>
+            </div>
+            <table class="w-full text-xs text-left grid-table">
+                <thead class="bg-gray-50 text-gray-500">
+                    <tr>
+                        <th class="p-2 border border-slate-200">號</th>
+                        <th class="p-2 border border-slate-200">d (cm)</th>
+                        <th class="p-2 border border-slate-200">間距 (cm)</th>
+                    </tr>
+                </thead>
+                <tbody>${rows(data)}</tbody>
+            </table>
+        </div>
+    `;
+
+    return `
+        <div class="border-l-4 ${borderColor} pl-4">
+            <h4 class="font-bold text-slate-700 mb-2">${title}</h4>
+            <div class="flex gap-4">
+                ${section('負彎矩', 'rose', 'fa-arrow-down', resNeg)}
+                ${section('正彎矩', 'emerald', 'fa-arrow-up', resPos)}
+            </div>
+        </div>
+    `;
+}
+
+function showDetailModal() {
+    if(!currentSingleResult) return;
+    const res = currentSingleResult;
+    // Show Short Neg if avail, else Short Pos
+    const bar = res.results.s_n.rebars[0] || res.results.s_p.rebars[0]; 
+    const mu = res.results.s_n.mu || res.results.s_p.mu;
+    
+    let content = '';
+    if(!bar) {
+        content = '<p class="text-red-500">該斷面無有效配筋可展示。</p>';
+    } else {
+        const b = 100;
+        const tempRatio = (res.input.fy >= 4200) ? 0.0018 : 0.0020;
+        const minAs = tempRatio * b * res.input.thickness;
+        
+        content = `
+            <div class="bg-slate-50 p-4 rounded mb-4 text-xs grid grid-cols-2 gap-2">
+               <div>Slab: <b>${res.input.slabId}</b></div>
+               <div>Mode: <b>${res.calcs.mode}</b></div>
+               <div>f'c: ${res.input.fc}, fy: ${res.input.fy}</div>
+               <div>Wu: ${res.calcs.wu.toFixed(0)}</div>
+            </div>
+            <div class="space-y-3">
+                <div class="font-bold text-blue-700 border-b pb-1">範例計算 (使用 #${bar.size})</div>
+                <div>1. 彎矩換算</div>
+                <div class="pl-4">\\( M_u = ${mu.toFixed(3)} \\text{ tf-m} = ${Math.round(mu*100000)} \\text{ kgf-cm} \\)</div>
+                <div class="pl-4 text-gray-500 text-xs">係數 C=${res.results.s_n.coef.toFixed(3)} (若為0則未計算)</div>
+                <div>2. 有效深度</div>
+                <div class="pl-4">\\( d = T - c - 0.5 d_b = ${res.input.thickness} - ${res.input.cover} - ... = ${bar.d} \\text{ cm} \\)</div>
+                <div>3. 強度設計</div>
+                <div class="pl-4">\\( R_n = ${bar.Rn.toFixed(2)} \\)</div>
+                <div class="pl-4">\\( \\rho = ${bar.rho.toFixed(5)} \\)</div>
+                <div class="pl-4">\\( A_{req} = ${bar.As_req.toFixed(2)} \\text{ cm}^2 \\)</div>
+                <div>4. 溫度鋼筋檢核</div>
+                <div class="pl-4">\\( A_{min} = ${tempRatio} b T = ${minAs.toFixed(2)} \\text{ cm}^2 \\)</div>
+                <div class="pl-4 text-slate-500">控制值 \\( A_{des} = \\max(A_{req}, A_{min}) = ${(Math.max(bar.As_req, minAs)).toFixed(2)} \\)</div>
+                <div>5. 間距計算</div>
+                <div class="pl-4">\\( s = \\frac{A_{bar} \\times 100}{A_{des}} = ${((REBAR[bar.size].area*100)/Math.max(bar.As_req, minAs)).toFixed(1)} \\rightarrow \\text{Use } @${bar.spacing} \\)</div>
+            </div>
+        `;
+    }
+    
+    document.getElementById('modalContent').innerHTML = content;
+    const modal = document.getElementById('detailModal');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('div').classList.remove('scale-90');
+        modal.querySelector('div').classList.add('scale-100');
+    }, 10);
+    MathJax.typeset();
+}
+
+function closeModal() {
+    const modal = document.getElementById('detailModal');
+    modal.classList.add('opacity-0');
+    modal.querySelector('div').classList.remove('scale-100');
+    modal.querySelector('div').classList.add('scale-90');
+    setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+function getDetailedCalculationHTML(res, rebarObj, title) {
+    if (!rebarObj || rebarObj.length === 0) return "";
+    const bar = rebarObj[0];
+    const b = 100;
+    const T = res.input.thickness;
+    const c = res.input.cover;
+    const fc = res.input.fc;
+    const fy = res.input.fy;
+    const tempRatio = (fy >= 4200) ? 0.0018 : 0.0020;
+    const minAs = tempRatio * b * T;
+    const fmt = (num) => Number(num).toFixed(2);
+    const fmt5 = (num) => Number(num).toFixed(5);
+    const fmt3 = (num) => Number(num).toFixed(3);
+    const isShort = title.includes("短向");
+    const multiplier = isShort ? 0.5 : 1.5;
+    
+    return `
+    <div style="font-family: 'Courier New', monospace; background: #fdfdfd; border: 1px dashed #ccc; padding: 10px; margin-top: 5px; font-size: 11px;">
+        <div style="font-weight:bold; color:#444; border-bottom:1px solid #ddd; margin-bottom:5px;">計算範例 (${title} using #${bar.size})</div>
+        <div>
+            1. Mu = ${fmt3(bar.Rn * 0.9 * b * bar.d * bar.d / 100000)} tf-m (approx check)<br>
+            2. d  = T - c - ${multiplier}*db = ${T} - ${c} - ${multiplier}*${REBAR[bar.size].db} = ${bar.d} cm<br>
+            3. Rn = Mu / (0.9 * b * d²) = ${fmt(bar.Rn)} kgf/cm²<br>
+            4. m  = fy / (0.85 * fc) = ${fmt(bar.m)}<br>
+            5. ρ  = (1/m)*(1 - sqrt(1 - 2*m*Rn/fy)) = ${fmt5(bar.rho)}<br>
+            6. As_req = ρ * b * d = ${fmt5(bar.rho)} * 100 * ${bar.d} = <b>${fmt(bar.As_req)}</b> cm²<br>
+            7. As_min = ${tempRatio} * b * T = <b>${fmt(minAs)}</b> cm²<br>
+            8. As_des = max(${fmt(bar.As_req)}, ${fmt(minAs)}) = ${fmt(Math.max(bar.As_req, minAs))} cm²<br>
+            9. Spacing = (A_bar * 100) / As_des = <b>@${bar.spacing}</b> cm
+        </div>
+    </div>
+    `;
+}
+
+function generateReport(results, includeDetail = false) {
+    const w = window.open('', '_blank');
+    const content = getHtmlContent(results, false, includeDetail);
+    w.document.write(content);
+    w.document.close();
+}
+
+function generateDoc(results, includeDetail = false) {
+    const content = getHtmlContent(results, true, includeDetail);
+    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>";
+    const docHtml = header + "<head><meta charset='utf-8'><title>Calculation Report</title></head><body>" + content + "</body></html>";
+    const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'slab_calc_report.doc';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function getHtmlContent(results, isDoc, includeDetail) {
+    let html = `
+    <html>
+    <head>
+        <title>RC樓版設計計算書</title>
+        <style>
+            body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; color: #000; line-height: 1.4; width: 210mm; margin: 0 auto; }
+            h1 { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 30px; font-size: 24px; }
+            h2 { margin: 0 0 10px 0; font-size: 16px; font-weight: bold; border-left: 5px solid #333; padding-left: 8px; background: #eee; }
+            h3 { font-size: 14px; margin: 15px 0 5px 0; border-bottom: 1px dotted #999; display: inline-block; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12px; border: 1px solid #000; }
+            th, td { border: 1px solid #000; padding: 4px 6px; text-align: center; vertical-align: middle; }
+            th { background-color: #f0f0f0; font-weight: bold; }
+            .header-label { background: #e0e0e0; font-weight: bold; width: 15%; }
+            .section-container { padding: 10px; border: 1px solid #000; margin-bottom: 20px; }
+            .print-btn { position: fixed; top: 20px; right: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; cursor: pointer; border-radius: 5px; }
+            @media print { 
+                .print-btn { display: none; } 
+                body { padding: 0; margin: 0; width: auto; }
+                .section-container { page-break-inside: avoid; page-break-before: always; border: 1px solid #000; }
+                .section-container:first-child { page-break-before: auto; }
+            }
+        </style>
+    </head>
+    <body>
+        ${!isDoc ? '<button class="print-btn" onclick="window.print()">列印 / 另存 PDF</button>' : ''}
+        <h1>RC 樓版配筋計算書</h1>
+    `;
+
+    results.forEach((res, index) => {
+        const d = res.input;
+        const isCantilever = d.type === 'CANTILEVER';
+        let typeInfo = boundaryOptions.find(o => o.v === d.type)?.t || d.type;
+        if(res.calcs.mode === 'ONE_WAY') typeInfo += " (單向版)";
+        const tempAs = (d.fy >= 4200 ? 0.0018 : 0.0020) * 100 * d.thickness;
+        const pageBreakStyle = (index > 0 && isDoc) ? 'page-break-before: always; mso-special-character:line-break;' : '';
+        const wrapperStart = isDoc ? `<br style="${pageBreakStyle}">` : '';
+
+        const renderSpanSection = (title, nRes, pRes) => {
+            let sizes = new Set([...nRes.rebars.map(r=>r.size), ...pRes.rebars.map(r=>r.size)]);
+            let rowsHtml = '';
+            let detailedHtml = '';
+            
+            if(sizes.size === 0) {
+                rowsHtml = `<tr><td colspan="8" style="color:red; border:1px solid #000;">無合適配筋 / 免計算</td></tr>`;
+            } else {
+                let sortedSizes = Array.from(sizes).sort((a,b)=>a-b).slice(0, 3);
+                sortedSizes.forEach(sz => {
+                    const n = nRes.rebars.find(r => r.size === sz);
+                    const p = pRes.rebars.find(r => r.size === sz);
+                    const dVal = n ? n.d : (p ? p.d : '-');
+                    
+                    // Split Control Logic
+                    const n_cell = n ? 
+                        `<td style="border:1px solid #000;">${n.As_req.toFixed(2)}</td><td style="border:1px solid #000;"><b>@${n.spacing}</b></td><td style="border:1px solid #000; font-size:10px;">${n.isTemp?'溫控':'強度'}</td>` : 
+                        `<td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td>`;
+                    
+                    const p_cell = p ? 
+                        `<td style="border:1px solid #000;">${p.As_req.toFixed(2)}</td><td style="border:1px solid #000;"><b>@${p.spacing}</b></td><td style="border:1px solid #000; font-size:10px;">${p.isTemp?'溫控':'強度'}</td>` : 
+                        `<td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td>`;
+
+                    rowsHtml += `
+                        <tr>
+                            <td style="border:1px solid #000;">#${sz}</td>
+                            <td style="border:1px solid #000;">${dVal}</td>
+                            ${n_cell}
+                            ${p_cell}
+                        </tr>
+                    `;
+                });
+                
+                if(includeDetail) {
+                    if(nRes.rebars.length > 0) detailedHtml += getDetailedCalculationHTML(res, nRes.rebars, title + " (負彎矩)");
+                    if(pRes.rebars.length > 0) detailedHtml += getDetailedCalculationHTML(res, pRes.rebars, title + " (正彎矩)");
+                }
+            }
+
+            const detailBlock = detailedHtml ? `<div style="background:#fff; border:1px solid #ccc; padding:5px;"><div style="font-weight:bold; background:#eee; padding:2px 5px; font-size:11px;">詳細計算過程 (Detailed Process)</div>${detailedHtml}</div>` : '';
+
+            // Title Handling for Special cases
+            let muTitle = `Mu(-) = ${nRes.mu.toFixed(3)} tf-m, Mu(+) = ${pRes.mu.toFixed(3)} tf-m`;
+            if(nRes.mu === 0 && pRes.mu === 0) muTitle = "彎矩為 0 (依最小溫度鋼筋配置)";
+
+            return `
+                <div style="margin-top: 15px;">
+                    <h3>${title}</h3>
+                    <div style="font-size:12px; margin-bottom:5px;">
+                        <b>設計彎矩:</b> ${muTitle}
+                    </div>
+                    <table border="1" cellspacing="0" cellpadding="4" style="width:100%; border-collapse: collapse; border: 1px solid #000;">
+                        <thead>
+                            <tr style="background-color:#f0f0f0;">
+                                <th rowspan="2" style="border:1px solid #000; width:5%;">號數</th>
+                                <th rowspan="2" style="border:1px solid #000; width:8%;">d (cm)</th>
+                                <th colspan="3" style="border:1px solid #000; color:#b91c1c;">負彎矩 (Top)</th>
+                                <th colspan="3" style="border:1px solid #000; color:#047857;">正彎矩 (Btm)</th>
+                            </tr>
+                            <tr style="background-color:#f9f9f9;">
+                                <th style="border:1px solid #000;">A_req (cm²)</th>
+                                <th style="border:1px solid #000;">間距 (cm)</th>
+                                <th style="border:1px solid #000;">控制</th>
+                                <th style="border:1px solid #000;">A_req (cm²)</th>
+                                <th style="border:1px solid #000;">間距 (cm)</th>
+                                <th style="border:1px solid #000;">控制</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                    ${detailBlock}
+                </div>
+            `;
+        };
+
+        let contentBody = `
+            <h2>樓版編號: ${d.slabId}</h2>
+            <table border="1" cellspacing="0" cellpadding="4" style="width:100%; border-collapse: collapse; border: 1px solid #000;">
+                <tr>
+                    <td class="header-label" style="border:1px solid #000;">幾何</td>
+                    <td style="border:1px solid #000;">S=${d.s_cm}cm, L=${d.l_cm}cm, T=${d.thickness}cm</td>
+                    <td class="header-label" style="border:1px solid #000;">載重 <span style="font-size:10px">(kgf/m<sup>2</sup>)</span></td>
+                    <td style="border:1px solid #000;">WD=${d.wd}, WLL=${d.wll}</td>
+                    <td class="header-label" style="border:1px solid #000;">材料 <span style="font-size:10px">(kgf/cm<sup>2</sup>)</span></td>
+                    <td style="border:1px solid #000;">fc=${d.fc}, fy=${d.fy}</td>
+                </tr>
+                <tr>
+                    <td class="header-label" style="border:1px solid #000;">分析</td>
+                    <td style="border:1px solid #000;">${typeInfo} (m=${res.calcs.ratio.toFixed(2)})</td>
+                    <td class="header-label" style="border:1px solid #000;">結果</td>
+                    <td style="border:1px solid #000;">Wu=${res.calcs.wu.toFixed(0)} kgf/m²<br>Amin=${tempAs.toFixed(2)} cm²</td>
+                    <td class="header-label" style="border:1px solid #000;">保護層</td>
+                    <td style="border:1px solid #000;">${d.cover} cm</td>
+                </tr>
+            </table>
+            <div class="moment-box">
+                <b>計算公式參考:</b> Mu = (Coef * Wu * S²) / 1000 (tf-m). <br>
+                有效深度 d(短)=T-c-0.5db, d(長)=T-c-1.5db.
+            </div>
+            ${renderSpanSection('3.1 短向設計 (Short Span)', res.results.s_n, res.results.s_p)}
+            ${!isCantilever ? renderSpanSection('3.2 長向設計 (Long Span)', res.results.l_n, res.results.l_p) : ''}
+        `;
+
+        if (isDoc) {
+             html += `${wrapperStart}<table width="100%" border="1" cellspacing="0" cellpadding="15" style="border-collapse: collapse; border: 2px solid #000; width: 100%;"><tr><td valign="top" style="border: 2px solid #000;">${contentBody}</td></tr></table>`;
+        } else {
+             html += `<div class="section-container">${contentBody}</div>`;
+        }
+    });
+
+    html += `</body></html>`;
+    return html;
+}
+</script>
+</body>
+</html>
