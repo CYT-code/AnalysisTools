@@ -13,6 +13,7 @@
         .input-group { transition: all 0.3s ease; }
         .input-group:focus-within { transform: translateY(-1px); }
         
+        /* Tab Styles */
         .tab-btn {
             padding: 10px 20px;
             font-weight: bold;
@@ -26,6 +27,7 @@
             background-color: #eff6ff;
         }
 
+        /* Batch Table Inputs */
         .batch-input {
             width: 100%;
             padding: 4px 0;
@@ -55,22 +57,29 @@
             outline: none;
         }
         
+        /* Custom Scrollbar */
         .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+        /* Report Modal Styles */
         .rebar-row:nth-child(even) { background-color: #f8fafc; }
-        .grid-table th, .grid-table td { border: 1px solid #e2e8f0; }
-        .grid-table th { background-color: #f1f5f9; }
-        
         .modal-enter { opacity: 0; transform: scale(0.95); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.2s, transform 0.2s; }
+        
+        /* Table Grid Fixes */
+        .grid-table th, .grid-table td {
+            border: 1px solid #e2e8f0; /* slate-200 */
+        }
+        .grid-table th {
+            background-color: #f1f5f9; /* slate-100 */
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-6 px-4">
 
-    <!-- Header -->
+    <!-- Header / Tab Switcher -->
     <div class="max-w-7xl w-full bg-white rounded-t-2xl shadow-sm border-b border-gray-200 flex justify-between items-center px-6 py-2">
         <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
             <i class="fa-solid fa-building text-blue-600"></i>
@@ -82,11 +91,12 @@
         </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- MAIN CONTENT CONTAINER -->
     <div class="max-w-7xl w-full bg-white rounded-b-2xl shadow-xl overflow-hidden min-h-[600px] relative">
         
-        <!-- SINGLE MODE -->
+        <!-- ======================= SINGLE MODE ======================= -->
         <div id="view-single" class="flex flex-col md:flex-row h-full transition-opacity duration-300">
+            <!-- 左側輸入 -->
             <div class="w-full md:w-4/12 bg-slate-50 border-r border-gray-100 p-6 overflow-y-auto custom-scroll max-h-[85vh]">
                 <div class="space-y-5">
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
@@ -116,7 +126,12 @@
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                         <h3 class="text-xs font-bold text-slate-500 mb-3 border-b pb-2">邊界條件</h3>
                         <select id="s_bound" class="w-full p-2 border rounded text-sm">
-                            <!-- Options populated by JS -->
+                            <option value="INTERIOR">四邊連續 (Interior)</option>
+                            <option value="1-EDGE">一邊不連續 (1-Edge Disc.)</option>
+                            <option value="2-EDGE">兩邊不連續 (2-Edge Disc.)</option>
+                            <option value="3-EDGE">三邊不連續 (3-Edge Disc.)</option>
+                            <option value="4-EDGE">四邊不連續 (4-Edge Disc.)</option>
+                            <option value="CANTILEVER" class="text-blue-700 font-bold">★ 懸臂版 (Cantilever)</option>
                         </select>
                     </div>
 
@@ -126,12 +141,14 @@
                 </div>
             </div>
 
+            <!-- 右側結果 -->
             <div class="w-full md:w-8/12 p-8 bg-white overflow-y-auto custom-scroll max-h-[85vh]">
                 <div id="single-empty" class="h-full flex flex-col items-center justify-center text-slate-400">
                     <i class="fa-solid fa-pen-ruler text-6xl mb-4 opacity-20"></i>
                     <p>請輸入參數並點擊計算</p>
                 </div>
                 <div id="single-result" class="hidden space-y-6">
+                    <!-- 摘要 -->
                     <div class="flex justify-between items-end border-b pb-4">
                         <div>
                             <span class="bg-slate-800 text-white px-2 py-1 rounded text-xs" id="res_id">S1</span>
@@ -143,8 +160,16 @@
                         </div>
                     </div>
                     
+                    <!-- Thickness Check Display -->
+                    <div id="res_thickness_check" class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm flex justify-between items-center">
+                        <span class="text-blue-800 font-bold"><i class="fa-solid fa-ruler-vertical mr-2"></i>版厚檢核</span>
+                        <span id="res_t_msg" class="font-mono text-gray-700">T=15cm >= 10cm (OK)</span>
+                    </div>
+
+                    <!-- 配筋結果卡片 (Short/Long) -->
                     <div id="res_cards" class="space-y-6"></div> 
 
+                    <!-- 按鈕 -->
                     <div class="flex flex-wrap gap-2 justify-end pt-6 border-t mt-6">
                         <button onclick="showDetailModal()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded text-sm font-bold hover:bg-slate-200"><i class="fa-solid fa-eye mr-2"></i>查看計算過程</button>
                         <button onclick="generateReport([currentSingleResult], true)" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700"><i class="fa-solid fa-print mr-2"></i>列印 / PDF</button>
@@ -154,7 +179,7 @@
             </div>
         </div>
 
-        <!-- BATCH MODE -->
+        <!-- ======================= BATCH MODE ======================= -->
         <div id="view-batch" class="hidden flex flex-col h-full">
             <div class="p-4 bg-slate-50 border-b border-gray-200 flex justify-between items-center">
                 <div class="flex gap-2">
@@ -165,6 +190,7 @@
                 <div class="flex gap-2">
                     <button onclick="addBatchRow()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs hover:bg-slate-50 text-slate-700"><i class="fa-solid fa-plus mr-1"></i>新增列</button>
                     <button onclick="clearBatch()" class="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs hover:bg-red-50 text-red-600"><i class="fa-solid fa-trash mr-1"></i>清空</button>
+                    <!-- Note: runBatchCalc uses default detailed=false -->
                     <button onclick="runBatchCalc(true)" class="px-4 py-1.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 shadow-sm ml-1"><i class="fa-solid fa-file-word mr-1"></i>輸出 Word</button>
                     <button onclick="runBatchCalc(false)" class="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 shadow-sm"><i class="fa-solid fa-print mr-1"></i>批次設計 & 列印</button>
                 </div>
@@ -174,8 +200,8 @@
                 <table class="w-full text-left border-collapse min-w-[1000px]">
                     <thead class="bg-slate-100 text-slate-600 text-xs font-bold sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <th class="p-3 border-b border-r w-10 text-center">#</th>
-                            <th class="p-3 border-b w-20">編號</th>
+                            <th class="p-3 border-b border-r w-12 text-center">#</th>
+                            <th class="p-3 border-b w-24">編號</th>
                             <th class="p-3 border-b w-20">短向 S<br><span class="text-[10px] font-normal">(cm)</span></th>
                             <th class="p-3 border-b w-20">長向 L<br><span class="text-[10px] font-normal">(cm)</span></th>
                             <th class="p-3 border-b w-16">厚度 T<br><span class="text-[10px] font-normal">(cm)</span></th>
@@ -188,14 +214,16 @@
                             <th class="p-3 border-b w-12 text-center">操作</th>
                         </tr>
                     </thead>
-                    <tbody id="batch-tbody" class="text-sm divide-y divide-slate-100 bg-white"></tbody>
+                    <tbody id="batch-tbody" class="text-sm divide-y divide-slate-100 bg-white">
+                        <!-- Rows will be injected here -->
+                    </tbody>
                 </table>
             </div>
         </div>
 
     </div>
 
-    <!-- Modal -->
+    <!-- DETAIL MODAL -->
     <div id="detailModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform scale-90 transition-transform duration-300">
             <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
@@ -207,12 +235,72 @@
     </div>
 
 <script>
-const REBAR = { 3: {db:0.953,area:0.7133}, 4: {db:1.27,area:1.267}, 5: {db:1.56,area:1.986}, 6: {db:1.91,area:2.865}, 7: {db:2.22,area:3.871}, 8: {db:2.54,area:5.067}, 10: {db:3.22,area:8.143} };
+/* ================= DATA & CONSTANTS ================= */
+const REBAR = {
+    3: { db: 0.953, area: 0.7133 },
+    4: { db: 1.27, area: 1.267 },
+    5: { db: 1.56, area: 1.986 },
+    6: { db: 1.91, area: 2.865 },
+    7: { db: 2.22, area: 3.871 },
+    8: { db: 2.54, area: 5.067 },
+    10: { db: 3.22, area: 8.143 }
+};
 
-// Coefficient Table (unchanged)
-const coefData = [[0.50,0.083,0.062,0.085,0.064,0.090,0.068,0.098,0.074,0.055,0.083],[0.51,0.081,0.060,0.083,0.063,0.089,0.067,0.097,0.073,0.055,0.083],[0.52,0.079,0.059,0.082,0.062,0.088,0.066,0.096,0.073,0.055,0.083],[0.53,0.077,0.057,0.080,0.060,0.086,0.065,0.096,0.072,0.054,0.082],[0.54,0.075,0.056,0.079,0.059,0.085,0.064,0.095,0.072,0.054,0.082],[0.55,0.073,0.054,0.077,0.058,0.084,0.063,0.094,0.071,0.054,0.082],[0.56,0.071,0.053,0.075,0.057,0.083,0.062,0.093,0.070,0.054,0.081],[0.57,0.069,0.051,0.074,0.056,0.082,0.061,0.092,0.070,0.054,0.081],[0.58,0.067,0.050,0.072,0.054,0.080,0.061,0.092,0.069,0.053,0.081],[0.59,0.065,0.048,0.071,0.053,0.079,0.060,0.091,0.069,0.053,0.080],[0.60,0.063,0.047,0.069,0.052,0.078,0.059,0.090,0.068,0.053,0.080],[0.61,0.062,0.046,0.068,0.051,0.077,0.058,0.089,0.067,0.052,0.079],[0.62,0.061,0.046,0.067,0.051,0.076,0.058,0.088,0.067,0.052,0.078],[0.63,0.061,0.045,0.067,0.050,0.076,0.057,0.088,0.066,0.051,0.078],[0.64,0.060,0.045,0.066,0.050,0.075,0.057,0.087,0.066,0.051,0.077],[0.65,0.059,0.044,0.065,0.049,0.074,0.056,0.086,0.065,0.050,0.076],[0.66,0.058,0.043,0.064,0.049,0.073,0.055,0.085,0.064,0.050,0.075],[0.67,0.058,0.043,0.064,0.048,0.073,0.055,0.084,0.064,0.049,0.074],[0.68,0.057,0.042,0.063,0.048,0.072,0.054,0.084,0.063,0.049,0.074],[0.69,0.057,0.042,0.063,0.047,0.072,0.054,0.083,0.063,0.048,0.073],[0.70,0.056,0.041,0.062,0.047,0.071,0.053,0.082,0.062,0.048,0.072],[0.71,0.055,0.041,0.061,0.046,0.070,0.053,0.081,0.061,0.047,0.071],[0.72,0.054,0.040,0.061,0.046,0.069,0.052,0.080,0.061,0.047,0.071],[0.73,0.054,0.040,0.060,0.045,0.069,0.052,0.080,0.060,0.046,0.070],[0.74,0.053,0.039,0.060,0.045,0.068,0.051,0.079,0.060,0.046,0.070],[0.75,0.052,0.039,0.059,0.044,0.067,0.051,0.078,0.059,0.045,0.069],[0.76,0.051,0.038,0.058,0.043,0.066,0.050,0.077,0.058,0.045,0.068],[0.77,0.050,0.038,0.057,0.043,0.065,0.050,0.076,0.058,0.044,0.067],[0.78,0.050,0.037,0.057,0.042,0.065,0.049,0.076,0.057,0.044,0.067],[0.79,0.049,0.037,0.056,0.042,0.064,0.049,0.075,0.057,0.043,0.066],[0.80,0.048,0.036,0.055,0.041,0.063,0.048,0.074,0.056,0.043,0.065],[0.81,0.047,0.035,0.054,0.041,0.062,0.047,0.073,0.055,0.042,0.064],[0.82,0.046,0.035,0.054,0.040,0.062,0.047,0.072,0.055,0.042,0.063],[0.83,0.046,0.034,0.053,0.040,0.061,0.046,0.072,0.054,0.041,0.063],[0.84,0.045,0.034,0.053,0.039,0.061,0.046,0.071,0.054,0.041,0.062],[0.85,0.044,0.033,0.052,0.039,0.060,0.045,0.070,0.053,0.040,0.061],[0.86,0.043,0.032,0.051,0.038,0.059,0.044,0.069,0.052,0.040,0.060],[0.87,0.043,0.032,0.050,0.038,0.058,0.044,0.068,0.052,0.039,0.060],[0.88,0.042,0.031,0.050,0.037,0.058,0.043,0.068,0.051,0.039,0.059],[0.89,0.042,0.031,0.049,0.037,0.057,0.043,0.067,0.051,0.038,0.059],[0.90,0.041,0.030,0.048,0.036,0.056,0.042,0.066,0.050,0.038,0.058],[0.91,0.040,0.030,0.047,0.036,0.055,0.042,0.065,0.049,0.037,0.057],[0.92,0.039,0.029,0.047,0.035,0.055,0.041,0.064,0.049,0.037,0.056],[0.93,0.039,0.029,0.046,0.035,0.054,0.041,0.064,0.048,0.036,0.056],[0.94,0.038,0.028,0.046,0.034,0.054,0.040,0.063,0.048,0.036,0.055],[0.95,0.037,0.028,0.045,0.034,0.053,0.040,0.062,0.047,0.035,0.054],[0.96,0.036,0.027,0.044,0.033,0.052,0.039,0.061,0.046,0.035,0.053],[0.97,0.035,0.027,0.043,0.033,0.051,0.039,0.060,0.046,0.034,0.052],[0.98,0.035,0.026,0.043,0.032,0.051,0.038,0.060,0.045,0.034,0.052],[0.99,0.034,0.026,0.042,0.032,0.050,0.038,0.059,0.045,0.033,0.051],[1.00,0.033,0.025,0.041,0.031,0.049,0.037,0.058,0.044,0.033,0.050]];
+// Coefficient Table (0.50 - 1.00)
+const coefData = [
+    [0.50, 0.083, 0.062, 0.085, 0.064, 0.090, 0.068, 0.098, 0.074, 0.055, 0.083],
+    [0.51, 0.081, 0.060, 0.083, 0.063, 0.089, 0.067, 0.097, 0.073, 0.055, 0.083],
+    [0.52, 0.079, 0.059, 0.082, 0.062, 0.088, 0.066, 0.096, 0.073, 0.055, 0.083],
+    [0.53, 0.077, 0.057, 0.080, 0.060, 0.086, 0.065, 0.096, 0.072, 0.054, 0.082],
+    [0.54, 0.075, 0.056, 0.079, 0.059, 0.085, 0.064, 0.095, 0.072, 0.054, 0.082],
+    [0.55, 0.073, 0.054, 0.077, 0.058, 0.084, 0.063, 0.094, 0.071, 0.054, 0.082],
+    [0.56, 0.071, 0.053, 0.075, 0.057, 0.083, 0.062, 0.093, 0.070, 0.054, 0.081],
+    [0.57, 0.069, 0.051, 0.074, 0.056, 0.082, 0.061, 0.092, 0.070, 0.054, 0.081],
+    [0.58, 0.067, 0.050, 0.072, 0.054, 0.080, 0.061, 0.092, 0.069, 0.053, 0.081],
+    [0.59, 0.065, 0.048, 0.071, 0.053, 0.079, 0.060, 0.091, 0.069, 0.053, 0.080],
+    [0.60, 0.063, 0.047, 0.069, 0.052, 0.078, 0.059, 0.090, 0.068, 0.053, 0.080],
+    [0.61, 0.062, 0.046, 0.068, 0.051, 0.077, 0.058, 0.089, 0.067, 0.052, 0.079],
+    [0.62, 0.061, 0.046, 0.067, 0.051, 0.076, 0.058, 0.088, 0.067, 0.052, 0.078],
+    [0.63, 0.061, 0.045, 0.067, 0.050, 0.076, 0.057, 0.088, 0.066, 0.051, 0.078],
+    [0.64, 0.060, 0.045, 0.066, 0.050, 0.075, 0.057, 0.087, 0.066, 0.051, 0.077],
+    [0.65, 0.059, 0.044, 0.065, 0.049, 0.074, 0.056, 0.086, 0.065, 0.050, 0.076],
+    [0.66, 0.058, 0.043, 0.064, 0.049, 0.073, 0.055, 0.085, 0.064, 0.050, 0.075],
+    [0.67, 0.058, 0.043, 0.064, 0.048, 0.073, 0.055, 0.084, 0.064, 0.049, 0.074],
+    [0.68, 0.057, 0.042, 0.063, 0.048, 0.072, 0.054, 0.084, 0.063, 0.049, 0.074],
+    [0.69, 0.057, 0.042, 0.063, 0.047, 0.072, 0.054, 0.083, 0.063, 0.048, 0.073],
+    [0.70, 0.056, 0.041, 0.062, 0.047, 0.071, 0.053, 0.082, 0.062, 0.048, 0.072],
+    [0.71, 0.055, 0.041, 0.061, 0.046, 0.070, 0.053, 0.081, 0.061, 0.047, 0.071],
+    [0.72, 0.054, 0.040, 0.061, 0.046, 0.069, 0.052, 0.080, 0.061, 0.047, 0.071],
+    [0.73, 0.054, 0.040, 0.060, 0.045, 0.069, 0.052, 0.080, 0.060, 0.046, 0.070],
+    [0.74, 0.053, 0.039, 0.060, 0.045, 0.068, 0.051, 0.079, 0.060, 0.046, 0.070],
+    [0.75, 0.052, 0.039, 0.059, 0.044, 0.067, 0.051, 0.078, 0.059, 0.045, 0.069],
+    [0.76, 0.051, 0.038, 0.058, 0.043, 0.066, 0.050, 0.077, 0.058, 0.045, 0.068],
+    [0.77, 0.050, 0.038, 0.057, 0.043, 0.065, 0.050, 0.076, 0.058, 0.044, 0.067],
+    [0.78, 0.050, 0.037, 0.057, 0.042, 0.065, 0.049, 0.076, 0.057, 0.044, 0.067],
+    [0.79, 0.049, 0.037, 0.056, 0.042, 0.064, 0.049, 0.075, 0.057, 0.043, 0.066],
+    [0.80, 0.048, 0.036, 0.055, 0.041, 0.063, 0.048, 0.074, 0.056, 0.043, 0.065],
+    [0.81, 0.047, 0.035, 0.054, 0.041, 0.062, 0.047, 0.073, 0.055, 0.042, 0.064],
+    [0.82, 0.046, 0.035, 0.054, 0.040, 0.062, 0.047, 0.072, 0.055, 0.042, 0.063],
+    [0.83, 0.046, 0.034, 0.053, 0.040, 0.061, 0.046, 0.072, 0.054, 0.041, 0.063],
+    [0.84, 0.045, 0.034, 0.053, 0.039, 0.061, 0.046, 0.071, 0.054, 0.041, 0.062],
+    [0.85, 0.044, 0.033, 0.052, 0.039, 0.060, 0.045, 0.070, 0.053, 0.040, 0.061],
+    [0.86, 0.043, 0.032, 0.051, 0.038, 0.059, 0.044, 0.069, 0.052, 0.040, 0.060],
+    [0.87, 0.043, 0.032, 0.050, 0.038, 0.058, 0.044, 0.068, 0.052, 0.039, 0.060],
+    [0.88, 0.042, 0.031, 0.050, 0.037, 0.058, 0.043, 0.068, 0.051, 0.039, 0.059],
+    [0.89, 0.042, 0.031, 0.049, 0.037, 0.057, 0.043, 0.067, 0.051, 0.038, 0.059],
+    [0.90, 0.041, 0.030, 0.048, 0.036, 0.056, 0.042, 0.066, 0.050, 0.038, 0.058],
+    [0.91, 0.040, 0.030, 0.047, 0.036, 0.055, 0.042, 0.065, 0.049, 0.037, 0.057],
+    [0.92, 0.039, 0.029, 0.047, 0.035, 0.055, 0.041, 0.064, 0.049, 0.037, 0.056],
+    [0.93, 0.039, 0.029, 0.046, 0.035, 0.054, 0.041, 0.064, 0.048, 0.036, 0.056],
+    [0.94, 0.038, 0.028, 0.046, 0.034, 0.054, 0.040, 0.063, 0.048, 0.036, 0.055],
+    [0.95, 0.037, 0.028, 0.045, 0.034, 0.053, 0.040, 0.062, 0.047, 0.035, 0.054],
+    [0.96, 0.036, 0.027, 0.044, 0.033, 0.052, 0.039, 0.061, 0.046, 0.035, 0.053],
+    [0.97, 0.035, 0.027, 0.043, 0.033, 0.051, 0.039, 0.060, 0.046, 0.034, 0.052],
+    [0.98, 0.035, 0.026, 0.043, 0.032, 0.051, 0.038, 0.060, 0.045, 0.034, 0.052],
+    [0.99, 0.034, 0.026, 0.042, 0.032, 0.050, 0.038, 0.059, 0.045, 0.033, 0.051],
+    [1.00, 0.033, 0.025, 0.041, 0.031, 0.049, 0.037, 0.058, 0.044, 0.033, 0.050]
+];
 
-// Updated Boundary Options with Codes 0~5
 const boundaryOptions = [
     {v:'INTERIOR', t:'0: 四邊連續 / 兩端連續'},
     {v:'1-EDGE', t:'1: 一邊不連續 / 一端不連續'},
@@ -224,7 +312,6 @@ const boundaryOptions = [
 
 let currentSingleResult = null; 
 
-// Initial Population
 window.onload = function() {
     const sSelect = document.getElementById('s_bound');
     sSelect.innerHTML = boundaryOptions.map(o => `<option value="${o.v}">${o.t}</option>`).join('');
@@ -276,7 +363,9 @@ function addBatchRow(data = null) {
     };
     
     const cell = (type, val) => `<td><input type="${type}" class="batch-input" value="${val}"></td>`;
-    const optionsHtml = boundaryOptions.map(o => `<option value="${o.v}" ${o.v===d.type?'selected':''}>${o.t}</option>`).join('');
+    
+    let selVal = d.type;
+    const optionsHtml = boundaryOptions.map(o => `<option value="${o.v}" ${o.v===selVal?'selected':''}>${o.t}</option>`).join('');
 
     tr.innerHTML = `
         <td class="p-2 text-center text-slate-400 text-xs">${idx}</td>
@@ -296,11 +385,10 @@ function addBatchRow(data = null) {
 }
 
 function clearBatch() {
-    if(confirm('確定清空所有資料?')) {
-        const tbody = document.getElementById('batch-tbody');
-        tbody.innerHTML = '';
-        addBatchRow();
-    }
+    if(!confirm('確定清空所有資料?')) return;
+    document.getElementById('batch-tbody').innerHTML = '';
+    addBatchRow();
+    document.getElementById('slabFileInput').value = '';
 }
 
 function exportBatchData() {
@@ -400,7 +488,7 @@ function runBatchCalc(isDoc) {
     
     if(results.length > 0) {
         if(isDoc) generateDoc(results, false); 
-        else generateReport(results, false);
+        else generateReport(results, false);   
     } else {
         alert('無有效數據可計算');
     }
@@ -412,6 +500,35 @@ function validateData(d, silent=false) {
         return false;
     }
     return true;
+}
+
+// Check Thickness Function
+function checkThickness(s, l, t, mode, type) {
+    let minT = 0;
+    let rule = "";
+
+    if (mode === 'CANTILEVER') {
+        minT = s / 10;
+        rule = "L/10";
+    } else if (mode === 'ONE_WAY') {
+        switch (type) {
+            case 'INTERIOR': minT = s / 28; rule = "L/28"; break; // 兩端連續
+            case '1-EDGE':   
+            case '3-EDGE':   minT = s / 24; rule = "L/24"; break; // 一端連續
+            case '2-EDGE':   
+            case '4-EDGE':   minT = s / 20; rule = "L/20"; break; // 簡支
+            default: minT = s / 20; rule = "L/20"; break;
+        }
+    } else {
+        minT = (s + l) / 90;
+        rule = "(S+L)/90";
+    }
+
+    return {
+        minT: minT,
+        status: t >= minT ? "OK" : "FAIL",
+        msg: `[${mode === 'TWO_WAY' ? '雙向版' : (mode === 'ONE_WAY' ? '單向版' : '懸臂版')}] T=${t}cm ${t >= minT ? '>=' : '<'} ${minT.toFixed(2)}cm (${rule})`
+    };
 }
 
 function calculateSlab(d) {
@@ -432,27 +549,30 @@ function calculateSlab(d) {
     let shortCoefs = { neg: 0, pos: 0 };
     let longCoefs = { neg: 0, pos: 0 };
     let mode = "TWO_WAY"; 
+    let slabCategory = "雙向版 (Two-Way)";
 
     if (d.type === 'CANTILEVER') {
         mode = "CANTILEVER";
+        slabCategory = "懸臂版 (Cantilever)";
         shortCoefs.neg = 0.5; 
         shortCoefs.pos = 0;
     } else if (ratio < 0.5) {
         mode = "ONE_WAY";
-        // One-way Logic (0, 1, 2)
+        slabCategory = "單向版 (One-Way)";
         switch(d.type) {
             case 'INTERIOR': // 0
                 shortCoefs.pos = 1/14; shortCoefs.neg = 1/11; break;
             case '1-EDGE':   // 1
-            case '3-EDGE':   // Fallback map
+            case '3-EDGE':   
                 shortCoefs.pos = 1/14; shortCoefs.neg = 1/10; break;
             case '2-EDGE':   // 2
-            case '4-EDGE':   // Fallback map
+            case '4-EDGE':   
             default:
                 shortCoefs.pos = 1/8;  shortCoefs.neg = 0; break;
         }
     } else {
         mode = "TWO_WAY";
+        slabCategory = "雙向版 (Two-Way)";
         let index = Math.round((roundedRatio - 0.50) * 100);
         if (index < 0) index = 0;
         if (index >= coefData.length) index = coefData.length - 1;
@@ -473,9 +593,12 @@ function calculateSlab(d) {
     const rebars_l_n = calcRebars(m_l_n, d.thickness, d.cover, d.fc, d.fy, false);
     const rebars_l_p = calcRebars(m_l_p, d.thickness, d.cover, d.fc, d.fy, false);
 
+    // Thickness Check
+    const tCheck = checkThickness(d.s_cm, d.l_cm, d.thickness, mode, d.type);
+
     return {
         input: d,
-        calcs: { s, l, wu, totalDL, mode, ratio: roundedRatio, comb: (comb1 > comb2) ? '1.4D' : '1.2D+1.6L' },
+        calcs: { s, l, wu, totalDL, mode, ratio: roundedRatio, comb: (comb1 > comb2) ? '1.4D' : '1.2D+1.6L', tCheck, slabCategory },
         results: {
             s_n: { title: "短向負彎矩", coef: shortCoefs.neg, mu: m_s_n, rebars: rebars_s_n },
             s_p: { title: "短向正彎矩", coef: shortCoefs.pos, mu: m_s_p, rebars: rebars_s_p },
@@ -497,7 +620,6 @@ function getCoeffsFromRow(row, type) {
 }
 
 function calcRebars(Mu_tfm, T, c, fc, fy, isShort) {
-    // If moment is 0 (e.g. 1-way long span, or simply supported neg), return temperature steel only
     const b = 100;
     const phi = 0.9;
     const maxS = Math.min(3 * T, 45);
@@ -550,16 +672,36 @@ function renderSingleResult(res) {
     document.getElementById('single-result').classList.remove('hidden');
     
     document.getElementById('res_id').innerText = input.slabId;
-    document.getElementById('res_ratio').innerText = `m=${calcs.ratio.toFixed(2)}`;
+    
+    // Display Slab Category
+    document.getElementById('res_ratio').innerHTML = `
+        <span class="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 mr-2">${calcs.slabCategory}</span>
+        m=${calcs.ratio.toFixed(2)}
+    `;
+    
     document.getElementById('res_wu').innerText = calcs.wu.toFixed(0);
     document.getElementById('res_comb').innerText = calcs.comb;
+    
+    const tColor = calcs.tCheck.status === 'OK' ? 'text-green-600' : 'text-red-600';
+    const tCheckDiv = document.getElementById('res_thickness_check');
+    if(tCheckDiv) {
+        document.getElementById('res_t_msg').className = `font-mono ${tColor}`;
+        document.getElementById('res_t_msg').innerText = calcs.tCheck.msg;
+    } else {
+        // Init if not present (should be in HTML structure, but just in case)
+        const header = document.querySelector('#single-result > div:first-child');
+        const div = document.createElement('div');
+        div.id = 'res_thickness_check';
+        div.className = "bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm flex justify-between items-center mb-4";
+        div.innerHTML = `<span class="text-blue-800 font-bold"><i class="fa-solid fa-ruler-vertical mr-2"></i>版厚檢核</span><span id="res_t_msg" class="font-mono ${tColor}">${calcs.tCheck.msg}</span>`;
+        header.after(div);
+    }
 
     const box = document.getElementById('res_cards');
     box.innerHTML = '';
     
     box.innerHTML += renderResultCard('短向設計 (Short Span)', 'border-blue-500', results.s_n, results.s_p);
     
-    // Always show long span for 2-way or 1-way (temp only) unless Cantilever
     if(calcs.mode !== 'CANTILEVER') {
         box.innerHTML += renderResultCard('長向設計 (Long Span)', 'border-purple-500', results.l_n, results.l_p);
     }
@@ -610,9 +752,8 @@ function renderResultCard(title, borderColor, resNeg, resPos) {
 function showDetailModal() {
     if(!currentSingleResult) return;
     const res = currentSingleResult;
-    // Show Short Neg if avail, else Short Pos
-    const bar = res.results.s_n.rebars[0] || res.results.s_p.rebars[0]; 
-    const mu = res.results.s_n.mu || res.results.s_p.mu;
+    const bar = res.results.s_n.rebars[0]; 
+    const mu = res.results.s_n.mu;
     
     let content = '';
     if(!bar) {
@@ -630,10 +771,10 @@ function showDetailModal() {
                <div>Wu: ${res.calcs.wu.toFixed(0)}</div>
             </div>
             <div class="space-y-3">
-                <div class="font-bold text-blue-700 border-b pb-1">範例計算 (使用 #${bar.size})</div>
+                <div class="font-bold text-blue-700 border-b pb-1">範例：短向負彎矩計算 (使用 #${bar.size})</div>
                 <div>1. 彎矩換算</div>
                 <div class="pl-4">\\( M_u = ${mu.toFixed(3)} \\text{ tf-m} = ${Math.round(mu*100000)} \\text{ kgf-cm} \\)</div>
-                <div class="pl-4 text-gray-500 text-xs">係數 C=${res.results.s_n.coef.toFixed(3)} (若為0則未計算)</div>
+                <div class="pl-4 text-gray-500 text-xs">係數 C=${res.results.s_n.coef.toFixed(3)}</div>
                 <div>2. 有效深度</div>
                 <div class="pl-4">\\( d = T - c - 0.5 d_b = ${res.input.thickness} - ${res.input.cover} - ... = ${bar.d} \\text{ cm} \\)</div>
                 <div>3. 強度設計</div>
@@ -755,8 +896,13 @@ function getHtmlContent(results, isDoc, includeDetail) {
     results.forEach((res, index) => {
         const d = res.input;
         const isCantilever = d.type === 'CANTILEVER';
+        
+        // Slab Type Logic for Report
         let typeInfo = boundaryOptions.find(o => o.v === d.type)?.t || d.type;
         if(res.calcs.mode === 'ONE_WAY') typeInfo += " (單向版)";
+        else if(res.calcs.mode === 'TWO_WAY') typeInfo += " (雙向版)";
+        else if(isCantilever) typeInfo += " (懸臂版)";
+
         const tempAs = (d.fy >= 4200 ? 0.0018 : 0.0020) * 100 * d.thickness;
         const pageBreakStyle = (index > 0 && isDoc) ? 'page-break-before: always; mso-special-character:line-break;' : '';
         const wrapperStart = isDoc ? `<br style="${pageBreakStyle}">` : '';
@@ -767,7 +913,15 @@ function getHtmlContent(results, isDoc, includeDetail) {
             let detailedHtml = '';
             
             if(sizes.size === 0) {
-                rowsHtml = `<tr><td colspan="8" style="color:red; border:1px solid #000;">無合適配筋 / 免計算</td></tr>`;
+                // Determine message based on context
+                let msg = "無合適配筋 / 免計算";
+                if (title.includes("長向") && res.calcs.mode === 'ONE_WAY') {
+                    // For One-way Long Span, usually just temp steel. But if moment is 0, our logic returns empty.
+                    // We should ideally show that it's temp steel controlled if moment is 0.
+                    // But for now, user just wants to SEE the section.
+                    msg = "長向配筋 (依最小溫度鋼筋)";
+                }
+                rowsHtml = `<tr><td colspan="8" style="color:red; border:1px solid #000;">${msg}</td></tr>`;
             } else {
                 let sortedSizes = Array.from(sizes).sort((a,b)=>a-b).slice(0, 3);
                 sortedSizes.forEach(sz => {
@@ -775,21 +929,16 @@ function getHtmlContent(results, isDoc, includeDetail) {
                     const p = pRes.rebars.find(r => r.size === sz);
                     const dVal = n ? n.d : (p ? p.d : '-');
                     
-                    // Split Control Logic
-                    const n_cell = n ? 
-                        `<td style="border:1px solid #000;">${n.As_req.toFixed(2)}</td><td style="border:1px solid #000;"><b>@${n.spacing}</b></td><td style="border:1px solid #000; font-size:10px;">${n.isTemp?'溫控':'強度'}</td>` : 
-                        `<td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td>`;
-                    
-                    const p_cell = p ? 
-                        `<td style="border:1px solid #000;">${p.As_req.toFixed(2)}</td><td style="border:1px solid #000;"><b>@${p.spacing}</b></td><td style="border:1px solid #000; font-size:10px;">${p.isTemp?'溫控':'強度'}</td>` : 
+                    const cell = (obj) => obj ? 
+                        `<td style="border:1px solid #000;">${obj.As_req.toFixed(2)}</td><td style="border:1px solid #000;"><b>@${obj.spacing}</b></td><td style="border:1px solid #000; font-size:10px;">${obj.isTemp?'溫控':'強度'}</td>` : 
                         `<td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td><td style="border:1px solid #000;">-</td>`;
 
                     rowsHtml += `
                         <tr>
                             <td style="border:1px solid #000;">#${sz}</td>
                             <td style="border:1px solid #000;">${dVal}</td>
-                            ${n_cell}
-                            ${p_cell}
+                            ${cell(n)}
+                            ${cell(p)}
                         </tr>
                     `;
                 });
@@ -802,15 +951,14 @@ function getHtmlContent(results, isDoc, includeDetail) {
 
             const detailBlock = detailedHtml ? `<div style="background:#fff; border:1px solid #ccc; padding:5px;"><div style="font-weight:bold; background:#eee; padding:2px 5px; font-size:11px;">詳細計算過程 (Detailed Process)</div>${detailedHtml}</div>` : '';
 
-            // Title Handling for Special cases
-            let muTitle = `Mu(-) = ${nRes.mu.toFixed(3)} tf-m, Mu(+) = ${pRes.mu.toFixed(3)} tf-m`;
-            if(nRes.mu === 0 && pRes.mu === 0) muTitle = "彎矩為 0 (依最小溫度鋼筋配置)";
+            let muText = `Mu(-) = ${nRes.mu.toFixed(3)} tf-m, Mu(+) = ${pRes.mu.toFixed(3)} tf-m`;
+            if(nRes.mu === 0 && pRes.mu === 0) muText += ` (依最小配筋量計算)`;
 
             return `
                 <div style="margin-top: 15px;">
                     <h3>${title}</h3>
                     <div style="font-size:12px; margin-bottom:5px;">
-                        <b>設計彎矩:</b> ${muTitle}
+                        <b>設計彎矩:</b> ${muText}
                     </div>
                     <table border="1" cellspacing="0" cellpadding="4" style="width:100%; border-collapse: collapse; border: 1px solid #000;">
                         <thead>
@@ -854,6 +1002,12 @@ function getHtmlContent(results, isDoc, includeDetail) {
                     <td style="border:1px solid #000;">Wu=${res.calcs.wu.toFixed(0)} kgf/m²<br>Amin=${tempAs.toFixed(2)} cm²</td>
                     <td class="header-label" style="border:1px solid #000;">保護層</td>
                     <td style="border:1px solid #000;">${d.cover} cm</td>
+                </tr>
+                <tr>
+                    <td class="header-label" style="border:1px solid #000;">版厚檢核</td>
+                    <td colspan="5" style="border:1px solid #000; font-weight:bold; color: ${res.calcs.tCheck.status === 'OK' ? 'green' : 'red'};">
+                        ${res.calcs.tCheck.msg}
+                    </td>
                 </tr>
             </table>
             <div class="moment-box">
