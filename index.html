@@ -20,9 +20,6 @@
     
     // 2. 命令瀏覽器立刻停止載入剩下的 HTML
     window.stop();
-    
-    // 3. 拋出一個錯誤來確保下方的程式碼絕對不會執行 (保險起見)
-    throw new Error("Access Denied");
   }
 </script>
 
@@ -101,6 +98,32 @@
             box-shadow: var(--hover-shadow);
         }
 
+        /* [更新] HOT 標籤樣式 - 設計感升級 */
+        .badge-hot {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, #FF3B30, #FF2D55); /* 蘋果紅漸層 */
+            color: white;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 99px; /* 膠囊形狀 */
+            box-shadow: 0 2px 8px rgba(255, 59, 48, 0.35); /* 柔和發光陰影 */
+            z-index: 10;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            pointer-events: none; /* 讓滑鼠點擊穿透 */
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards; /* 彈出動畫 */
+            animation-delay: 0.3s; /* 稍晚一點出現 */
+        }
+
+        /* 標籤彈出動畫 */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         .icon {
             font-size: 40px;
             margin-bottom: 20px;
@@ -112,6 +135,13 @@
             justify-content: center;
             border-radius: 16px;
             box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+        }
+
+        /* 專門給 SVG 圖示用的設定，讓它置中且顏色正確 */
+        .icon svg {
+            width: 36px;
+            height: 36px;
+            fill: #333; /* 鋼材顏色 */
         }
 
         .card-title {
@@ -222,6 +252,7 @@
             <p class="card-desc">輸入H 型鋼尺寸，自動計算斷面性質與容許強度。</p>
             <div class="action-link">開啟工具</div>
         </a>
+
         <!-- 工具 6 (新增)：RC 版配筋設計 -->
         <a href="rc_slab.html" class="tool-card">
             <!-- 👇 【未來刪除教學】 👇 -->
@@ -235,16 +266,10 @@
                 </svg>
             </div>
             <h3 class="card-title">RC 版配筋設計</h3>
-            <p class="card-desc">單向/雙向版 (Slab) 配筋試算，檢核彎矩強度與變形。</p>
+            <p class="card-desc">單向/雙向版 (Slab) 配筋試算，檢核彎矩強度。</p>
             <div class="action-link">開啟工具</div>
         </a>
-        <!-- 工具 5 ：SRCOL 輸入檔介面 -->
-        <!--<a href="srcol_inp.html" class="tool-card">
-            <div class="icon">⌨️</div>
-            <h3 class="card-title">SRCOL 輸入檔介面</h3>
-            <p class="card-desc">圖形化介面產生 SRCOL 輸入檔，免除繁瑣的手動編輯文字檔。</p>
-            <div class="action-link">開啟工具</div>
-        </a>-->
+
         <!-- 預留位置 (可隨時新增) -->
         <a href="#" class="tool-card" style="opacity: 0.5; pointer-events: none;">
             <div class="icon">➕</div>
@@ -261,11 +286,3 @@
 
 </body>
 </html>
-
-
-
-
-
-
-
-
